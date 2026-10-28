@@ -25,3 +25,6 @@ unwrap_used = "deny"
 missing_docs = "warn"
 rust_2018_idioms = { level = "deny", priority = -1 }
 unsafe_code = "forbid"
+
+[workspace.metadata.msrv]
+rust-version = "1.85"

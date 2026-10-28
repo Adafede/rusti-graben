@@ -86,3 +86,5 @@ case "$cmd" in
     ci-release) "$0" semver || true; cargo publish --workspace --dry-run ;;
     *) echo "Usage: ./mk {--list|setup|fmt|lint|test|doc|deny|audit|typos|tombi|machete|msrv|semver|echoes|refquiem|ci|ci-nightly|ci-release|mutants|coverage|powerset|wasm}"; exit 1 ;;
 esac
+
+# ensure workspace metadata for msrv
