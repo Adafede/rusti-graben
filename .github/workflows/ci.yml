@@ -36,7 +36,11 @@ jobs:
       - name: Install tools
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny,cargo-machete,cargo-audit,typos-cli,cargo-hack
+          tool: cargo-deny,cargo-machete,cargo-audit,typos-cli,cargo-hack,cargo-msrv,cargo-semver-checks
+      - name: Install echoes/refquiem
+        run: cargo install cargo-echoes cargo-refquiem 2>&1 | tail -1 || true
+      - name: Install tombi
+        run: cargo install tombi 2>&1 | tail -1 || true
 
       - name: Run Unified ./mk ci Gate
         run: ./mk ci
