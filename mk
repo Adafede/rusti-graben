@@ -59,8 +59,8 @@ case "$cmd" in
     machete) cargo machete ;;
     msrv) echo "[skip] msrv" ;;
     semver) if [ $DETECT_LIB -eq 1 ]; then cargo semver-checks --workspace || echo "[warn] semver check failed (unpublished)"; else echo "[skip] semver: no lib target"; fi ;;
-    echoes) if command -v cargo-echoes >/dev/null 2>&1; then cargo echoes; else echo "[warn] cargo-echoes missing"; fi ;;
-    refquiem) if command -v cargo-refquiem >/dev/null 2>&1; then cargo refquiem; else echo "[warn] cargo-refquiem missing"; fi ;;
+    echoes) if command -v cargo-echoes >/dev/null 2>&1; then cargo echoes; else echo "cargo-echoes missing"; exit 1; fi ;;
+    refquiem) if command -v cargo-refquiem >/dev/null 2>&1; then cargo refquiem; else echo "cargo-refquiem missing"; exit 1; fi ;;
     wasm) if [ $DETECT_WASM -eq 1 ]; then rustup target add wasm32-unknown-unknown; cargo check --workspace --target wasm32-unknown-unknown --all-features; else echo "[skip] wasm: no wasm target declared"; fi ;;
     mutants) [ -f mutants.toml ] && [ -f .mutants-baseline ] && cargo mutants --workspace || (echo "ERROR: mutants baseline missing" && exit 1) ;;
     coverage) cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info ;;
@@ -77,8 +77,8 @@ case "$cmd" in
         echo "--- machete ---"; cargo machete
         echo "--- msrv ---"; echo "[skip] msrv"
         if [ $DETECT_LIB -eq 1 ]; then echo "--- semver ---"; cargo semver-checks --workspace || echo "[warn] semver check failed (unpublished)"; else echo "[skip] semver: no lib target"; fi
-        echo "--- echoes ---"; if command -v cargo-echoes >/dev/null 2>&1; then cargo echoes; else echo "[warn] cargo-echoes missing"; fi
-        echo "--- refquiem ---"; if command -v cargo-refquiem >/dev/null 2>&1; then cargo refquiem; else echo "[warn] cargo-refquiem missing"; fi
+        echo "--- echoes ---"; if command -v cargo-echoes >/dev/null 2>&1; then cargo echoes; else echo "cargo-echoes missing"; exit 1; fi
+        echo "--- refquiem ---"; if command -v cargo-refquiem >/dev/null 2>&1; then cargo refquiem; else echo "cargo-refquiem missing"; exit 1; fi
         if [ $DETECT_WASM -eq 1 ]; then echo "--- wasm ---"; rustup target add wasm32-unknown-unknown; cargo check --workspace --target wasm32-unknown-unknown --all-features; else echo "[skip] wasm: no wasm target declared"; fi
         echo "==> All blocking CI gates passed successfully!"
         ;;
