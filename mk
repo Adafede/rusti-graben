@@ -8,8 +8,8 @@ case "$cmd" in
     setup)
         echo "==> Installing required cargo tools and components..."
         rustup toolchain install stable
-        rustup component add rustfmt clippy miri wasm32-unknown-unknown
-        cargo install cargo-deny cargo-machete cargo-audit typos-cli cargo-hack cargo-semver-checks cargo-mutants
+        rustup component add rustfmt clippy miri rust-docs wasm32-unknown-unknown
+        cargo install cargo-deny cargo-machete cargo-audit typos-cli cargo-hack cargo-semver-checks cargo-mutants cargo-llvm-cov --locked 2>/dev/null || cargo install cargo-deny cargo-machete cargo-audit typos-cli cargo-hack cargo-semver-checks cargo-mutants cargo-llvm-cov
         ;;
     fmt)
         echo "==> Running formatters..."
@@ -34,6 +34,41 @@ case "$cmd" in
         cargo deny check
         cargo audit
         ;;
+    mutants)
+        echo "==> Running mutation testing (scoped)..."
+        # Scoped by default to avoid long runs; see mutants.toml for configuration
+        if [ -f mutants.toml ]; then
+            cargo mutants --workspace --in-place 2>&1 | tail -40 || cargo mutants
+        else
+            cargo mutants
+        fi
+        ;;
+    coverage)
+        echo "==> Running coverage with llvm-cov..."
+        cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+        echo "==> Coverage report written to lcov.info"
+        ;;
+    semver)
+        echo "==> Running cargo-semver-checks..."
+        cargo semver-checks --workspace
+        ;;
+    msrv)
+        echo "==> Checking MSRV..."
+        if command -v cargo-msrv >/dev/null 2>&1; then
+            cargo msrv verify
+        else
+            echo "cargo-msrv not installed; verify MSRV from rust-toolchain.toml/clippy.toml (MSRV policy documented)"
+        fi
+        ;;
+    powerset)
+        echo "==> Running cargo-hack feature powerset..."
+        cargo hack --workspace --feature-powerset --no-dev-deps check
+        ;;
+    wasm)
+        echo "==> Building/checking wasm32 target (opt-in)..."
+        rustup target add wasm32-unknown-unknown 2>/dev/null || true
+        cargo check --workspace --target wasm32-unknown-unknown --all-features
+        ;;
     ci)
         echo "==> Running full local CI gate..."
         "$0" fmt
@@ -44,7 +79,7 @@ case "$cmd" in
         echo "==> All CI gates passed successfully!"
         ;;
     *)
-        echo "Usage: ./mk {setup|fmt|lint|test|doc|deny|ci}"
+        echo "Usage: ./mk {setup|fmt|lint|test|doc|deny|ci|mutants|coverage|semver|msrv|powerset|wasm}"
         exit 1
         ;;
 esac

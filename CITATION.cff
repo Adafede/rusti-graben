@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "rusti-graben"
+authors:
+  - name: "Rusti-Graben Maintainers"
+license: "AGPL-3.0-or-later"
+repository-code: "https://github.com/Adafede/rusti-graben"

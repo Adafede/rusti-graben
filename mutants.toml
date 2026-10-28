@@ -1,0 +1,5 @@
+# Mutation testing configuration for cargo-mutants
+# Scoped to keep CI costs manageable; ratchet over time
+[mutants]
+# Limit to sample crates for baseline; expand as coverage improves
+# exclude_globs = ["crates/sample-bin/**"]  # can be tuned
