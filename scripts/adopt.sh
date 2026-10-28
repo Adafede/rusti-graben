@@ -23,6 +23,13 @@ if [ -f "$TARGET_DIR/Cargo.toml" ]; then
     grep -q 'wasm' "$TARGET_DIR/Cargo.toml" && echo "    Detected: wasm references" || true
 fi
 
+# Migration checklist helper
+echo "==> Migration checklist:"
+echo "    [ ] Review existing Cargo.toml for [workspace.lints.*] - merge rusti-graben lints or generate allowlist"
+echo "    [ ] Run clippy and collect warnings into a tracked allowlist (never weaken silently)"
+echo "    [ ] Run ./mk ci and address failures incrementally"
+echo "    [ ] Configure CI/workflows and consider prek hooks (call ./mk only)"
+
 if [ "$DRY_RUN" -eq 1 ]; then
     echo "==> DRY-RUN mode active. Set DRY_RUN=0 to apply changes."
     echo "    Would apply: deny.toml, rust-toolchain.toml, clippy.toml, ./mk runner"
@@ -39,6 +46,6 @@ else
     [ "$WITH_MUTANTS" = "1" ] && [ -f mutants.toml ] && cp -n mutants.toml "$TARGET_DIR/mutants.toml" || true
     [ "$WITH_COVERAGE" = "1" ] && [ -f codecov.yml ] && cp -n codecov.yml "$TARGET_DIR/codecov.yml" || true
     [ "$WITH_PREK" = "1" ] && [ -f prek.toml ] && cp -n prek.toml "$TARGET_DIR/prek.toml" || true
-    echo "==> Adoption complete! Run ./mk ci to verify."
+    echo "==> Adoption complete! Follow the migration checklist above. Run ./mk ci to verify."
     exit 0
 fi

@@ -100,6 +100,7 @@ case "$cmd" in
         "$0" test
         "$0" doc
         "$0" deny
+        cargo machete
         echo "==> All CI gates passed successfully!"
         ;;
     *)

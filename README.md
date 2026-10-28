@@ -1,5 +1,7 @@
 # `rusti-graben`
 
+[![CI Quality Gate](https://github.com/Adafede/rusti-graben/actions/workflows/ci.yml/badge.svg)](https://github.com/Adafede/rusti-graben/actions/workflows/ci.yml)
+
 > A strict, zero-drift quality-hygiene template and migration framework for Rust repositories.
 
 `rusti-graben` establishes a hard boundary against unformatted code, sloppy lints, security vulnerabilities, and supply-chain drift. It provides a unified execution model where local development and CI pipelines run the exact same checks with zero divergence.
