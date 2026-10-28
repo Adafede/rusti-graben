@@ -7,9 +7,10 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
-authors = ["Rusti-Graben Maintainers <maintainers@example.com>"]
-license = "AGPL-3.0-only"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Rusti-Graben Maintainers"]
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/adafede/rusti-graben"
 
 [workspace.lints.rust]

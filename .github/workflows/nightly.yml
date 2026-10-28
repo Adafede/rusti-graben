@@ -35,19 +35,7 @@ jobs:
       - name: Install tools
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny,cargo-audit,cargo-mutants,cargo-hack,typos-cli
+          tool: cargo-deny,cargo-audit,cargo-mutants,cargo-hack,cargo-outdated
 
-      - name: Audit
-        run: ./mk deny || true
-
-      - name: Mutants (scoped)
-        run: ./mk mutants || true
-
-      - name: Feature powerset
-        run: ./mk powerset || true
-
-      - name: Coverage
-        run: ./mk coverage || true
-
-      - name: Wasm check (opt-in)
-        run: ./mk wasm || true
+      - name: Nightly
+        run: ./mk ci-nightly
