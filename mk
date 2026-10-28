@@ -45,6 +45,8 @@ case "$cmd" in
         typos
         if command -v tombi >/dev/null 2>&1; then
             tombi format --check
+        else
+            echo "tombi missing"; exit 1
         fi
         ;;
     lint) cargo clippy --workspace --all-targets --all-features -- -D warnings ;;
