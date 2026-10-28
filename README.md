@@ -4,6 +4,10 @@
 
 > A strict, zero-drift quality-hygiene template and migration framework for Rust repositories.
 
+## LLM Skill
+
+This template is available as an LLM skill: [`SKILL.md`](./SKILL.md) or [`skills/rusti-graben/SKILL.md`](./skills/rusti-graben/SKILL.md). Always use `./mk` as the single entrypoint with hard-fail gates.
+
 ## Available tasks
 
 Tasks are generated from `./mk --list` (do not hand-maintain this list):
