@@ -1,0 +1,11 @@
+[default]
+extend-ignore-re = [
+    '(?m)^.*\b(rusti-graben)\b.*$',
+]
+
+[files]
+extend-exclude = [
+    "*.svg",
+    "Cargo.lock",
+    "target/",
+]

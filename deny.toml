@@ -1,0 +1,14 @@
+[advisories]
+unmaintained = "workspace"
+unsound = "workspace"
+
+[licenses]
+allow = [
+  # Permissive — fully compatible with AGPL-3.0
+  "AGPL-3.0-only",
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-git = []

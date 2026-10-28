@@ -1,0 +1,11 @@
+[package]
+name = "sample-bin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+sample-lib = { path = "../sample-lib" }

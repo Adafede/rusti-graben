@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sample-lib",
+    "crates/sample-bin",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Rusti-Graben Maintainers <maintainers@example.com>"]
+license = "AGPL-3.0-only"
+repository = "https://github.com/adafede/rusti-graben"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2018_idioms = { level = "deny", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "deny"
