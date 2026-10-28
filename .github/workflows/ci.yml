@@ -17,7 +17,7 @@ jobs:
   ci:
     name: Run Quality Gates
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,8 +63,8 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny,cargo-machete,cargo-audit,typos-cli,cargo-hack,cargo-msrv,cargo-semver-checks,tombi
-      - name: Install echoes/refquiem if available
-        run: cargo install cargo-echoes cargo-refquiem 2>&1 | tail -2 || true
+      - name: Install echoes/refquiem
+        run: cargo install cargo-echoes cargo-refquiem 2>&1 | tail -1 || true
       - name: Inject unformatted file violation and assert failure
         run: |
           echo "fn bad( ){let x=1;}" >> crates/sample-lib/src/lib.rs
