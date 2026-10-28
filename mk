@@ -69,6 +69,24 @@ case "$cmd" in
         rustup target add wasm32-unknown-unknown 2>/dev/null || true
         cargo check --workspace --target wasm32-unknown-unknown --all-features
         ;;
+    dejadoc|echoes)
+        echo "==> Running dejadoc/echoes (duplication check)..."
+        if command -v cargo-dejadoc >/dev/null 2>&1; then
+            cargo dejadoc
+        elif command -v cargo-echoes >/dev/null 2>&1; then
+            cargo echoes
+        else
+            echo "cargo-dejadoc/cargo-echoes not installed or not published on crates.io; skipping (intent: detect duplicate code/docs)."
+        fi
+        ;;
+    refquiem)
+        echo "==> Running refquiem (stale references check)..."
+        if command -v cargo-refquiem >/dev/null 2>&1; then
+            cargo refquiem
+        else
+            echo "cargo-refquiem not installed or not published on crates.io; skipping (intent: detect stale references to removed items)."
+        fi
+        ;;
     ci)
         echo "==> Running full local CI gate..."
         "$0" fmt
@@ -79,7 +97,7 @@ case "$cmd" in
         echo "==> All CI gates passed successfully!"
         ;;
     *)
-        echo "Usage: ./mk {setup|fmt|lint|test|doc|deny|ci|mutants|coverage|semver|msrv|powerset|wasm}"
+        echo "Usage: ./mk {setup|fmt|lint|test|doc|deny|ci|mutants|coverage|semver|msrv|powerset|wasm|dejadoc|echoes|refquiem}"
         exit 1
         ;;
 esac
