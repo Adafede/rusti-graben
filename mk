@@ -57,7 +57,7 @@ case "$cmd" in
     typos) typos ;;
     tombi) if command -v tombi >/dev/null 2>&1; then tombi format --check; else echo "tombi missing"; exit 1; fi ;;
     machete) cargo machete ;;
-    msrv) if command -v cargo-msrv >/dev/null 2>&1; then cargo msrv verify --all-features || true; else echo "cargo-msrv missing"; exit 1; fi ;;
+    msrv) if command -v cargo-msrv >/dev/null 2>&1; then cargo msrv verify --all-features || echo "[warn] msrv non-blocking"; else echo "cargo-msrv missing"; exit 1; fi ;;
     semver) if [ $DETECT_LIB -eq 1 ]; then cargo semver-checks --workspace || echo "[warn] semver check failed (unpublished)"; else echo "[skip] semver: no lib target"; fi ;;
     echoes) if command -v cargo-echoes >/dev/null 2>&1; then cargo echoes; else echo "cargo-echoes missing"; exit 1; fi ;;
     refquiem) if command -v cargo-refquiem >/dev/null 2>&1; then cargo refquiem; else echo "cargo-refquiem missing"; exit 1; fi ;;
@@ -75,7 +75,7 @@ case "$cmd" in
         echo "--- typos ---"; typos
         echo "--- tombi ---"; if command -v tombi >/dev/null 2>&1; then tombi format --check; else echo "tombi missing"; exit 1; fi
         echo "--- machete ---"; cargo machete
-        echo "--- msrv ---"; if command -v cargo-msrv >/dev/null 2>&1; then cargo msrv verify --all-features || echo "[warn] msrv check non-blocking"; else echo "cargo-msrv missing"; exit 1; fi
+        echo "--- msrv ---"; if command -v cargo-msrv >/dev/null 2>&1; then cargo msrv verify --all-features || echo "[warn] msrv non-blocking"; else echo "cargo-msrv missing"; exit 1; fi
         if [ $DETECT_LIB -eq 1 ]; then echo "--- semver ---"; cargo semver-checks --workspace || echo "[warn] semver check failed (unpublished)"; else echo "[skip] semver: no lib target"; fi
         echo "--- echoes ---"; if command -v cargo-echoes >/dev/null 2>&1; then cargo echoes; else echo "cargo-echoes missing"; exit 1; fi
         echo "--- refquiem ---"; if command -v cargo-refquiem >/dev/null 2>&1; then cargo refquiem; else echo "cargo-refquiem missing"; exit 1; fi
@@ -86,5 +86,3 @@ case "$cmd" in
     ci-release) "$0" semver || true; cargo publish --workspace --dry-run ;;
     *) echo "Usage: ./mk {--list|setup|fmt|lint|test|doc|deny|audit|typos|tombi|machete|msrv|semver|echoes|refquiem|ci|ci-nightly|ci-release|mutants|coverage|powerset|wasm}"; exit 1 ;;
 esac
-
-# ensure workspace metadata for msrv
