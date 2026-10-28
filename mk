@@ -14,7 +14,13 @@ case "$cmd" in
     fmt)
         echo "==> Running formatters..."
         cargo fmt --all -- --check
-        typos
+        if command -v typos >/dev/null 2>&1; then
+            typos
+        else
+            echo "typos not found; attempting to install..."
+            cargo install typos-cli --locked 2>/dev/null || true
+            command -v typos >/dev/null 2>&1 && typos || echo "typos not available, skipping"
+        fi
         ;;
     lint)
         echo "==> Running clippy and checks..."
