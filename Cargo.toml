@@ -1,27 +1,27 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/sample-lib",
-    "crates/sample-bin",
+  "crates/sample-bin",
+  "crates/sample-lib",
 ]
 
 [workspace.package]
 version = "0.1.0"
+authors = ["Rusti-Graben Maintainers"]
 edition = "2024"
 rust-version = "1.85"
-authors = ["Rusti-Graben Maintainers"]
-license = "AGPL-3.0-or-later"
 repository = "https://github.com/adafede/rusti-graben"
-
-[workspace.lints.rust]
-unsafe_code = "forbid"
-missing_docs = "warn"
-rust_2018_idioms = { level = "deny", priority = -1 }
+license = "AGPL-3.0-or-later"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
-unwrap_used = "deny"
 expect_used = "warn"
+nursery = { level = "warn", priority = -1 }
 panic = "deny"
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+rust_2018_idioms = { level = "deny", priority = -1 }
+unsafe_code = "forbid"
