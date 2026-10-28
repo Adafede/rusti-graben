@@ -60,8 +60,10 @@ jobs:
       - name: Install tools
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny,cargo-machete,cargo-audit,typos-cli,cargo-hack
+          tool: cargo-deny,cargo-machete,cargo-audit,typos-cli,cargo-hack,cargo-msrv,cargo-semver-checks,tombi
+      - name: Install echoes/refquiem if available
+        run: cargo install cargo-echoes cargo-refquiem 2>&1 | tail -2 || true
       - name: Inject unformatted file violation and assert failure
         run: |
           echo "fn bad( ){let x=1;}" >> crates/sample-lib/src/lib.rs
-          if ./mk ci; then echo "ERROR: ci did not fail on formatting violation"; exit 1; else echo "OK: ci failed as expected"; git checkout -- crates/sample-lib/src/lib.rs; fi
+          if ./mk ci; then echo "ERROR: ci did not fail on formatting violation"; git checkout -- crates/sample-lib/src/lib.rs; exit 1; else echo "OK: ci failed as expected"; git checkout -- crates/sample-lib/src/lib.rs; fi
