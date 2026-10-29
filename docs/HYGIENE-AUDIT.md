@@ -52,3 +52,11 @@ the gate fails for that reason (run on every PR).
 (binaries `cargo-echoes` / `cargo-refquiem`, by Luca Cappelletti, MIT). The
 `cargo-echoes` / `cargo-refquiem` crate names do not exist, which is why earlier
 CI installs silently failed.
+
+## Dependency updates
+
+Dependabot updates Cargo dependencies and GitHub Actions digests (workflows and
+the shared setup action). Renovate only updates what Dependabot cannot: the
+tools in `mk.versions`, the `rust-toolchain.toml` pin and cargo-binstall. Both
+wait 7 days after a release, and Dependabot commits use `chore(deps):` so they
+pass `./mk commits`.
