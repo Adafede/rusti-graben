@@ -22,7 +22,7 @@ the gate fails for that reason (run on every PR).
 | audit | cargo-audit `--deny warnings` | RUSTSEC advisories, unmaintained and yanked crates | Vulnerable `smallvec` in lockfile |
 | machete | cargo-machete | Unused dependencies | Unused `itoa` |
 | msrv | `cargo +<rust-version> check` | Code that does not build on the declared MSRV | `is_multiple_of` (1.87) |
-| echoes | echoes (`cargo echoes`) | Duplicated doctests, functions and code blocks | Copy-pasted function |
+| echoes | echoes (`cargo echoes`, `.echoes.toml`) | Duplicated doctests, functions and code blocks across the workspace; local code re-implementing an API already exported anywhere in the transitive dependency graph (dev, build, optional, all features, latest releases) | Copy-pasted function; re-implemented dependency fn; weakened config |
 | refquiem | refquiem (`cargo refquiem`) | Docs and comments mentioning items deleted in git history | README naming a deleted fn |
 | semver | cargo-semver-checks vs. the last `v*` tag | Breaking API change without a major bump (skips: no lib, or no earlier tag) | Public fn removed after a tag |
 | wasm | `cargo check --target wasm32-unknown-unknown` | Code that does not build for wasm (skips: no wasm32 target declared) | `std::os::unix` import |

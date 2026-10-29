@@ -24,7 +24,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
     exit 0
 else
     echo "==> Applying (existing files are kept; their diff against the template is shown)..."
-    for f in mk mk.versions deny.toml rust-toolchain.toml clippy.toml rustfmt.toml .tombi.toml .typos.toml mutants.toml prek.toml; do
+    for f in mk mk.versions deny.toml rust-toolchain.toml clippy.toml rustfmt.toml .echoes.toml .tombi.toml .typos.toml mutants.toml prek.toml; do
         if [ -e "$TARGET_DIR/$f" ]; then
             echo "    keep $f (differs from template:)"
             diff -u "$TARGET_DIR/$f" "$TEMPLATE_DIR/$f" || true

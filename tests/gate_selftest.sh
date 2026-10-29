@@ -7,7 +7,8 @@ set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+OUTSIDE="$(mktemp -d)" # crates that must not be workspace members
+trap 'rm -rf "$WORK" "$OUTSIDE"' EXIT
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$SRC/target}/selftest"
 export GIT_AUTHOR_NAME=selftest GIT_AUTHOR_EMAIL=selftest@invalid
 export GIT_COMMITTER_NAME=selftest GIT_COMMITTER_EMAIL=selftest@invalid
@@ -55,6 +56,16 @@ untested_fn='/// Doubles `x`.
 #[must_use]
 pub const fn double(x: usize) -> usize {
     x * 2
+}'
+
+checksum_fn='/// Weighted byte sum.
+#[must_use]
+pub fn checksum(data: &[u8]) -> u64 {
+    let mut acc = 0u64;
+    for (i, b) in data.iter().enumerate() {
+        acc = acc.wrapping_add((i as u64 + 1).wrapping_mul(u64::from(*b)));
+    }
+    acc
 }'
 
 # --- ci tier ----------------------------------------------------------------
@@ -142,6 +153,17 @@ pub fn checksum_b(data: &[u8]) -> u64 {
     acc
 }'
 expect_fail echoes "checksum_b" "duplicated function"
+
+# A dependency already exports `checksum`; the workspace re-implements it.
+mkdir -p "$OUTSIDE/helper/src"
+printf '[package]\nname = "helper"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$OUTSIDE/helper/Cargo.toml"
+printf '//! Helper.\n\n%s\n' "$checksum_fn" >"$OUTSIDE/helper/src/lib.rs"
+printf '\n[dependencies]\nhelper = { path = "%s" }\n' "$OUTSIDE/helper" >>"$LIB_TOML"
+append_lib "${checksum_fn/fn checksum/fn local_checksum}"
+expect_fail echoes "helper::checksum" "re-implementing a dependency's API"
+
+perl -pi -e 's/^fail-on-findings = true/fail-on-findings = false/' .echoes.toml
+expect_fail echoes "fail-on-findings" "weakened .echoes.toml"
 
 append_lib '/// Removes `right` from `left`, saturating at zero.
 #[must_use]

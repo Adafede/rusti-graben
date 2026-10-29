@@ -170,7 +170,16 @@ case "$cmd" in
         rustup run "$v" true 2>/dev/null || die "MSRV toolchain $v is not installed; run ./mk setup"
         cargo "+$v" check --workspace --all-targets --all-features --locked
         ;;
-    echoes) need echoes; cargo echoes --all-targets --functions --context-blocks ;;
+    echoes)
+        need echoes
+        # echoes silently falls back to a shallow scan without its config, so insist on the deep one.
+        for key in 'functions = true' 'context-blocks = true' 'fail-on-findings = true'; do
+            grep -q "^$key" .echoes.toml 2>/dev/null || die ".echoes.toml must set '$key'"
+        done
+        grep -Eq '^depth = [1-9]' .echoes.toml || die ".echoes.toml must set [context-dependencies] depth > 0"
+        if [ "${GITHUB_ACTIONS:-}" = true ]; then set -- --github; fi
+        cargo echoes --all-targets --config .echoes.toml "$@"
+        ;;
     refquiem)
         need refquiem
         [ "$(git rev-parse --is-shallow-repository)" = false ] || die "refquiem needs full git history (fetch-depth: 0)"

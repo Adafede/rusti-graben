@@ -1,0 +1,20 @@
+# cargo-echoes, deepest scan. Read by `./mk echoes` (unknown keys are rejected).
+# Keep an intentional copy with a `// echoes: allow` line above it, with a reason.
+
+functions = true
+context-blocks = true
+# Compare every context of the workspace against every other.
+context-search = "workspace"
+context-select = "workspace"
+
+[context-dependencies]
+# Local code that re-implements an API a dependency already exports, anywhere in
+# the transitive graph, including dev/build deps, optional deps and every feature.
+all-features = true
+all-optional = true
+depth = 1000
+fail-on-findings = true
+include-build = true
+include-dev = true
+# Also compare against each dependency's latest release, not only the locked one.
+check-latest = true
