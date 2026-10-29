@@ -29,19 +29,10 @@ jobs:
           fetch-depth: 0 # refquiem reads history; semver compares against the last tag
           persist-credentials: false
 
-      - name: Install pinned toolchain
-        run: rustup toolchain install
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-
-      - name: Install cargo-binstall
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+      - name: Setup
+        uses: $/.github/actions/setup
         with:
-          tool: cargo-binstall@1.18.1
-
-      - name: Install pinned tools (mk.versions)
-        run: ./mk setup ci
+          tier: ci
 
       - name: Run blocking gates
         run: ./mk ci
@@ -57,19 +48,10 @@ jobs:
           fetch-depth: 0 # refquiem reads history; semver compares against the last tag
           persist-credentials: false
 
-      - name: Install pinned toolchain
-        run: rustup toolchain install
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-
-      - name: Install cargo-binstall
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+      - name: Setup
+        uses: $/.github/actions/setup
         with:
-          tool: cargo-binstall@1.18.1
-
-      - name: Install pinned tools (mk.versions)
-        run: ./mk setup all
+          tier: all
 
       - name: Inject one violation per gate and assert failure
         run: ./mk selftest

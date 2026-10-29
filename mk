@@ -10,8 +10,8 @@ cd "$ROOT_DIR"
 . ./mk.versions
 
 SKIP_RC=78
-CI_GATES="tools actions fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes refquiem semver wasm"
-NIGHTLY_GATES="mutants coverage powerset miri outdated"
+CI_GATES=(tools actions shell commits fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes refquiem semver wasm mutants-diff)
+NIGHTLY_GATES=(mutants coverage powerset miri outdated)
 
 cmd="${1:-ci}"
 shift || true
@@ -29,6 +29,21 @@ has_lib() { cargo metadata --no-deps --format-version 1 --locked | grep -q '"kin
 has_wasm() { grep -q 'wasm32' rust-toolchain.toml Cargo.toml 2>/dev/null; }
 msrv() { sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1; }
 
+# Branch this work merges into: MK_BASE, the PR base on CI, origin/HEAD, origin/main, origin/master.
+base_ref() {
+    local ref
+    for ref in "${MK_BASE:-}" "${GITHUB_BASE_REF:+origin/$GITHUB_BASE_REF}" \
+        "$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)" origin/main origin/master; do
+        if [ -n "$ref" ] && git rev-parse -q --verify "$ref^{commit}" >/dev/null; then
+            echo "$ref"
+            return
+        fi
+    done
+    return 1
+}
+
+CONVENTIONAL='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._/-]+\))?!?: [^ ]'
+
 # --- pinned tools -----------------------------------------------------------
 
 tool_version() {
@@ -38,6 +53,7 @@ tool_version() {
         echoes | refquiem) cargo "$1" --version ;;
         cargo-*) cargo "${1#cargo-}" --version ;;
         tombi) tombi --version ;;
+        shellcheck) shellcheck --version ;;
         *) echo "unknown tool $1" >&2; return 1 ;;
     esac
 }
@@ -63,7 +79,7 @@ require_tools() {
 
 spec_of() {
     local spec
-    for spec in $CARGO_TOOLS_CI $CARGO_TOOLS_NIGHTLY; do
+    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}"; do
         if [ "${spec%@*}" = "$1" ]; then echo "$spec"; return; fi
     done
     die "$1 is not pinned in mk.versions"
@@ -82,6 +98,21 @@ install_tombi() {
         tar xz -C "$tmp"
     mkdir -p "$bin_dir"
     install -m 0755 "$tmp/tombi-cli-${TOMBI_VERSION}-${target}/tombi" "$bin_dir/tombi"
+    rm -rf "$tmp"
+}
+
+install_shellcheck() {
+    if has_version shellcheck "$SHELLCHECK_VERSION"; then return; fi
+    local os arch tmp bin_dir
+    os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    arch="$(uname -m)"
+    arch="${arch/arm64/aarch64}"
+    tmp="$(mktemp -d)"
+    bin_dir="${CARGO_HOME:-$HOME/.cargo}/bin"
+    curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${os}.${arch}.tar.gz" |
+        tar xz -C "$tmp"
+    mkdir -p "$bin_dir"
+    install -m 0755 "$tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$bin_dir/shellcheck"
     rm -rf "$tmp"
 }
 
@@ -122,25 +153,51 @@ run_tier() {
 
 case "$cmd" in
     --list | --list-all-steps)
-        printf '%s\n' setup tools $CI_GATES $NIGHTLY_GATES ci ci-nightly ci-release selftest | sort -u
+        printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" ci ci-nightly ci-release selftest | sort -u
         ;;
     setup)
         tier="${1:-all}"
         rustup toolchain install # from rust-toolchain.toml
         rustup toolchain install "$(msrv)" --profile minimal
         install_tombi
-        install_cargo_tools $CARGO_TOOLS_CI
+        install_shellcheck
+        install_cargo_tools "${CARGO_TOOLS_CI[@]}"
         if [ "$tier" = all ] || [ "$tier" = nightly ]; then
             rustup toolchain install "$RUST_NIGHTLY" --profile minimal --component miri,rust-src
             rustup component add llvm-tools
-            install_cargo_tools $CARGO_TOOLS_NIGHTLY
+            install_cargo_tools "${CARGO_TOOLS_NIGHTLY[@]}"
         fi
         ;;
     tools)
         require tombi "$TOMBI_VERSION"
-        require_tools $CARGO_TOOLS_CI
+        require shellcheck "$SHELLCHECK_VERSION"
+        require_tools "${CARGO_TOOLS_CI[@]}"
         ;;
-    actions) need zizmor; zizmor --offline .github/workflows ;;
+    actions) need zizmor; zizmor --offline .github ;;
+    shell)
+        require shellcheck "$SHELLCHECK_VERSION"
+        # Every tracked shell script, found by extension or shebang.
+        scripts=()
+        while IFS= read -r f; do
+            case "$f" in
+                *.sh) scripts+=("$f") ;;
+                *) if head -n1 "$f" 2>/dev/null | grep -Eq '^#!.*[/ ](bash|sh)\b'; then scripts+=("$f"); fi ;;
+            esac
+        done < <(git ls-files)
+        [ "${#scripts[@]}" -gt 0 ] || skip "no shell scripts"
+        shellcheck --external-sources --severity=style "${scripts[@]}"
+        ;;
+    commits)
+        base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
+        bad=0
+        while IFS= read -r subject; do
+            if ! grep -Eq "$CONVENTIONAL" <<<"$subject"; then
+                echo "not a conventional commit: $subject"
+                bad=1
+            fi
+        done < <(git log --no-merges --format=%s "$(git merge-base "$base" HEAD)..HEAD")
+        [ "$bad" = 0 ]
+        ;;
     fmt) cargo fmt --all -- --check ;;
     tombi)
         require tombi "$TOMBI_VERSION"
@@ -160,7 +217,7 @@ case "$cmd" in
         [ "$missing" = 0 ]
         ;;
     test) cargo test --workspace --all-features --locked ;;
-    doc) RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked ;;
+    doc) RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --document-private-items --locked ;;
     deny) need cargo-deny; cargo deny --all-features --locked check ;;
     audit) need cargo-audit; cargo audit --deny warnings ;;
     machete) need cargo-machete; cargo machete ;;
@@ -201,6 +258,16 @@ case "$cmd" in
         # Exit 2 = missed mutants, 3 = timeouts: both fail. Exclusions live in mutants.toml.
         cargo mutants --workspace --all-features --config mutants.toml
         ;;
+    mutants-diff)
+        # Mutants in code changed against the base branch (and uncommitted changes), on every PR.
+        need cargo-mutants
+        base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
+        diff="$(mktemp)"
+        trap 'rm -f "$diff"' EXIT
+        git diff --no-ext-diff --no-color "$(git merge-base "$base" HEAD)" -- '*.rs' >"$diff"
+        [ -s "$diff" ] || skip "no Rust changes against $base"
+        cargo mutants --workspace --all-features --config mutants.toml --in-diff "$diff"
+        ;;
     coverage)
         need cargo-llvm-cov
         cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info \
@@ -209,8 +276,8 @@ case "$cmd" in
     powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
     miri) cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked ;;
     outdated) need cargo-outdated; cargo outdated --workspace --root-deps-only --exit-code 1 ;;
-    ci) run_tier ci $CI_GATES ;;
-    ci-nightly) run_tier ci-nightly $NIGHTLY_GATES ;;
+    ci) run_tier ci "${CI_GATES[@]}" ;;
+    ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" ;;
     ci-release)
         "$0" ci
         cargo publish --workspace --dry-run --locked

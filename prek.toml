@@ -10,6 +10,7 @@ repo = "local"
 hooks = [
   { id = "fmt", name = "./mk fmt", language = "system", entry = "./mk fmt", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
   { id = "tombi", name = "./mk tombi", language = "system", entry = "./mk tombi", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "shell", name = "./mk shell", language = "system", entry = "./mk shell", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
   { id = "typos", name = "./mk typos", language = "system", entry = "./mk typos", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
   { id = "lint", name = "./mk lint", language = "system", entry = "./mk lint", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
   { id = "ci", name = "./mk ci", language = "system", entry = "./mk ci", pass_filenames = false, always_run = true, stages = ["pre-push"] },

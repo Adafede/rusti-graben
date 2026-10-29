@@ -9,7 +9,7 @@ Notes:
 
 ## Suggested PR families
 1. **CI/unification**: Ensure CI uses single entrypoint consistent with policy; SHA-pin actions; add concurrency/permissions.
-2. **Tooling surface**: Add `./mk` tasks for missing gates (mutants/coverage/semver/msrv/powerset/wasm) if desired, but don't replace Makefile.toml.
+2. **Tooling surface**: Add the template gates it lacks (echoes, refquiem, mutants, coverage, semver, msrv, powerset, actions). They are required, not optional; record legacy noise as described in `docs/ADOPTING.md`. Don't replace Makefile.toml.
 3. **Config hygiene**: Align clippy/deny/rust-toolchain to template where compatible; add prek calling mk if migrating.
 4. **Governance**: Add AGENTS.md/CONTRIBUTING/SECURITY/CODEOWNERS/templates if missing.
 

@@ -29,17 +29,11 @@ jobs:
           fetch-depth: 0 # refquiem reads history; semver compares against the last tag
           persist-credentials: false
 
-      - name: Install pinned toolchain
-        run: rustup toolchain install
-
-      # No cache here: release builds must not consume a cache other runs could have poisoned.
-      - name: Install cargo-binstall
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+      - name: Setup
+        uses: $/.github/actions/setup
         with:
-          tool: cargo-binstall@1.18.1
-
-      - name: Install pinned tools (mk.versions)
-        run: ./mk setup ci
+          tier: ci
+          cache: "false" # release builds must not consume a cache other runs could have poisoned
 
       - name: Run release gates
         run: ./mk ci-release

@@ -10,14 +10,16 @@ the gate fails for that reason (run on every PR).
 | Gate | Tool | Catches | Selftest violation |
 |---|---|---|---|
 | tools | `mk.versions` | Local/CI tool drift | Pinned version changed |
-| actions | zizmor (offline) | Unpinned actions, credential leaks, injection in workflows | Action pinned to a tag |
+| actions | zizmor (offline), `.github/` | Unpinned actions, credential leaks, injection in workflows and the shared setup action | Action pinned to a tag |
+| shell | shellcheck | Quoting, word-splitting and portability bugs in `mk` and every tracked script | Unquoted `$1` |
+| commits | `./mk` (Conventional Commits regex) | Commit subjects on the branch that break the convention (changelogs, release tooling) | `Update the library` |
 | fmt | rustfmt | Unformatted Rust | Unformatted function |
 | tombi | tombi format + lint | Unformatted or schema-invalid TOML, unreadable tombi config | Unformatted table |
 | typos | typos | Misspellings in code and docs | Misspelled comment |
-| lint | clippy `-D warnings` + workspace lints | unwrap, panic, todo, dbg, unsafe, bare `#[allow]` (use `#[expect(.., reason)]`), pedantic/nursery | `unwrap()`, `unsafe {}`, `#[allow]` |
+| lint | clippy `-D warnings` + workspace lints | unwrap, panic, todo, dbg, unsafe, bare `#[allow]` (use `#[expect(.., reason)]`), pedantic/nursery, and a curated restriction set (printing in libraries, indexing, `std` where `core` works, assert without message, ...) | `unwrap()`, `unsafe {}`, `#[allow]`, `println!` in a lib |
 | lints-inherit | `./mk` | Crates that do not opt into `[lints] workspace = true` | `[lints]` removed |
-| test | cargo test | Regressions, doctests | Failing assertion |
-| doc | rustdoc `-D warnings` | Broken intra-doc links, doc warnings | Unresolved link |
+| test | cargo test | Regressions, doctests, crate READMEs (included as crate docs) | Failing assertion, failing README example |
+| doc | rustdoc `-D warnings`, private items, rustdoc lints | Broken or private intra-doc links, unbalanced backticks, bare URLs, invalid code blocks | Unresolved link, stray backtick |
 | deny | cargo-deny | Licenses outside the allow-list, advisories, duplicate versions, wildcards, unknown sources | GPL crate |
 | audit | cargo-audit `--deny warnings` | RUSTSEC advisories, unmaintained and yanked crates | Vulnerable `smallvec` in lockfile |
 | machete | cargo-machete | Unused dependencies | Unused `itoa` |
@@ -26,6 +28,9 @@ the gate fails for that reason (run on every PR).
 | refquiem | refquiem (`cargo refquiem`) | Docs and comments mentioning items deleted in git history | README naming a deleted fn |
 | semver | cargo-semver-checks vs. the last `v*` tag | Breaking API change without a major bump (skips: no lib, or no earlier tag) | Public fn removed after a tag |
 | wasm | `cargo check --target wasm32-unknown-unknown` | Code that does not build for wasm (skips: no wasm32 target declared) | `std::os::unix` import |
+| mutants-diff | cargo-mutants `--in-diff` vs. the base branch | New or changed code no test checks, caught on the PR instead of nightly | Untested fn added on the branch |
+
+`./mk selftest` also runs `scripts/adopt.sh` against a scratch legacy crate: dry run writes nothing, apply copies every config, existing files are kept, and a second run changes nothing.
 
 ## `./mk ci-nightly`
 

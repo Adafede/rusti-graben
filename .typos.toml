@@ -1,7 +1,7 @@
-[default]
-extend-ignore-re = [
-  '(?m)^.*\b(rusti-graben)\b.*$',
-]
+[default.extend-words]
+# Project name (German "Graben": ditch). Allow the word, not whole lines.
+graben = "graben"
+rusti = "rusti"
 
 [files]
 extend-exclude = [

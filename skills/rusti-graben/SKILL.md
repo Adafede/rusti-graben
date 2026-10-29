@@ -31,7 +31,7 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 ```
 
 ## Gates (./mk ci)
-tools, actions, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, refquiem, semver (skips only with no lib or no earlier `v*` tag), wasm (skips only with no wasm32 target). All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/HYGIENE-AUDIT.md`.
+tools, actions, shell, commits, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, refquiem, semver (skips only with no lib or no earlier `v*` tag), wasm (skips only with no wasm32 target), mutants-diff (mutation testing of the branch's changes). All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/HYGIENE-AUDIT.md`.
 
 ## Commands
 - `./mk --list` - List all tasks

@@ -3,6 +3,8 @@
 # copy of the repo and asserts `./mk <gate>` fails *because of it* (the
 # expected marker must appear in the output). A gate that cannot be shown to
 # fail is not a gate.
+# Rust and Markdown snippets are single-quoted on purpose: their backticks are literal.
+# shellcheck disable=SC2016
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,6 +22,8 @@ git init -q
 git add -A
 git commit -qm base
 git tag base
+# Branch-relative gates (commits, mutants-diff) compare with the base commit.
+export MK_BASE=base
 
 LIB=crates/sample-lib/src/lib.rs
 LIB_TOML=crates/sample-lib/Cargo.toml
@@ -73,8 +77,15 @@ pub fn checksum(data: &[u8]) -> u64 {
 perl -pi -e 's/^TOMBI_VERSION=.*/TOMBI_VERSION="0.0.0"/' mk.versions
 expect_fail tools "0.0.0" "tool version differs from mk.versions"
 
-perl -pi -e 's/rust-cache@[0-9a-f]{40}/rust-cache\@v2/' .github/workflows/ci.yml
+perl -pi -e 's/checkout@[0-9a-f]{40}/checkout\@v7/' .github/workflows/ci.yml
 expect_fail actions "unpinned" "action not pinned to a commit SHA"
+
+printf '\necho $1\n' >>scripts/adopt.sh
+expect_fail shell "SC2086" "unquoted variable in a shell script"
+
+echo "// change" >>"$LIB"
+git commit -qam "Update the library"
+expect_fail commits "not a conventional commit" "commit message outside Conventional Commits"
 
 append_lib 'fn bad( ){}'
 expect_fail fmt "Diff in" "unformatted code"
@@ -102,14 +113,26 @@ append_lib '#[allow(dead_code)]
 fn unused() {}'
 expect_fail lint "allow_attributes" "#[allow] instead of #[expect(.., reason)]"
 
+append_lib '/// Prints a greeting.
+pub fn greet() {
+    println!("hi");
+}'
+expect_fail lint "print_stdout" "println! in a library"
+
 perl -0pi -e 's/\[lints\]\nworkspace = true\n//' "$BIN_TOML"
 expect_fail lints-inherit "missing" "crate not inheriting workspace lints"
 
-perl -pi -e 's/assert_eq!\(result, 4\)/assert_eq!(result, 5)/' "$LIB"
+perl -pi -e 's/assert_eq!\(result, 4,/assert_eq!(result, 5,/' "$LIB"
 expect_fail test "FAILED" "failing unit test"
 
 perl -pi -e 's|^/// Adds two|/// See [`nope`]. Adds two|' "$LIB"
 expect_fail doc "unresolved link" "broken intra-doc link"
+
+perl -pi -e 's|^/// Adds two|/// Adds `two|' "$LIB"
+expect_fail doc "unescaped backtick" "unbalanced backtick in docs"
+
+perl -pi -e 's/assert_eq!\(total, 6,/assert_eq!(total, 7,/' crates/sample-lib/README.md
+expect_fail test "README.md" "failing README example"
 
 perl -pi -e 's/^license\.workspace = true/license = "GPL-3.0-only"/' "$LIB_TOML"
 expect_fail deny "GPL-3.0-only" "license outside the allow-list"
@@ -189,6 +212,9 @@ expect_fail wasm "unix" "code that does not build for wasm32"
 append_lib "// $typo"
 expect_fail ci "FAIL  typos" "ci tier propagates a failing gate"
 
+append_lib "$untested_fn"
+expect_fail mutants-diff "MISSED" "untested function added on the branch"
+
 # --- nightly tier -----------------------------------------------------------
 
 append_lib "$untested_fn"
@@ -196,6 +222,33 @@ expect_fail mutants "MISSED" "untested function (surviving mutant)"
 
 append_lib "$untested_fn"
 expect_fail coverage "coverage" "line coverage below the floor"
+
+# --- scripts/adopt.sh ------------------------------------------------------
+
+# check <description> <command...>: the command must succeed.
+check() {
+    local what="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then echo "ok           adopt: $what"; else echo "FAILED       adopt: $what"; failed=1; fi
+}
+adopted_files=(mk mk.versions deny.toml rust-toolchain.toml clippy.toml rustfmt.toml .echoes.toml .tombi.toml .typos.toml mutants.toml prek.toml)
+all_present() { for f in "${adopted_files[@]}"; do [ -f "$1/$f" ] || return 1; done; }
+none_present_but_deny() { for f in "${adopted_files[@]}"; do [ "$f" = deny.toml ] || [ ! -e "$1/$f" ] || return 1; done; }
+fingerprint() { (cd "$1" && cat "${adopted_files[@]}" | cksum); }
+
+target="$OUTSIDE/adopt-target"
+mkdir -p "$target"
+printf '[package]\nname = "legacy"\nversion = "0.1.0"\nedition = "2021"\n' >"$target/Cargo.toml"
+printf '# legacy policy\n' >"$target/deny.toml"
+check "dry run writes nothing" env DRY_RUN=1 "$SRC/scripts/adopt.sh" "$target"
+check "dry run left the repo untouched" none_present_but_deny "$target"
+check "apply copies every gate config" env DRY_RUN=0 "$SRC/scripts/adopt.sh" "$target"
+check "every gate config is present" all_present "$target"
+check "mk is executable" test -x "$target/mk"
+check "existing config is kept" grep -qx '# legacy policy' "$target/deny.toml"
+before="$(fingerprint "$target")"
+check "second apply succeeds" env DRY_RUN=0 "$SRC/scripts/adopt.sh" "$target"
+check "second apply changes nothing" test "$before" = "$(fingerprint "$target")"
 
 [ "$failed" = 0 ] || { echo "selftest: some gates cannot fail as they should" >&2; exit 1; }
 echo "==> every gate failed on its injected violation"
