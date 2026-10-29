@@ -25,7 +25,7 @@ the gate fails for that reason (template CI, every PR).
 | audit | cargo-audit `--deny warnings` | RUSTSEC advisories, unmaintained and yanked crates | Vulnerable `smallvec` in lockfile |
 | machete | cargo-machete | Unused dependencies | Unused `itoa` |
 | msrv | `cargo +<rust-version> check` | Code that does not build on the declared MSRV | `is_multiple_of` (1.87) |
-| echoes | echoes (`cargo echoes`, `.echoes.toml`) | Duplicated doctests, functions and code blocks across the workspace; local code re-implementing an API already exported anywhere in the transitive dependency graph (dev, build, optional, all features, latest releases) | Copy-pasted function; re-implemented dependency fn; weakened config |
+| echoes | echoes (`cargo echoes`, `.echoes.toml`) | Duplicated doctests, functions and code blocks across the workspace; local code re-implementing an API a direct dependency already exports (dev, build, optional, all features, at the locked versions) | Copy-pasted function; re-implemented dependency fn; weakened config |
 | semver | cargo-semver-checks vs. the last `v*` tag | Breaking API change without a major bump (skips: no lib, every crate pre-1.0 and so in development, or no earlier tag) | Public fn removed after `v1.0.0` |
 | wasm | `cargo check --target wasm32-unknown-unknown` | Code that does not build for wasm (skips unless `rust-toolchain.toml` or `Cargo.toml` declares wasm32) | `std::os::unix` import |
 | mutants-diff | cargo-mutants `--in-diff` vs. the base branch | New or changed code no test checks, caught on the PR instead of nightly | Untested fn added on the branch |
@@ -36,7 +36,7 @@ the gate fails for that reason (template CI, every PR).
 
 | Gate | Tool | Catches |
 |---|---|---|
-| mutants | cargo-mutants (`mutants.toml`) | Code whose behavior no test checks; zero missed mutants |
+| mutants | cargo-mutants (`.cargo/mutants.toml`) | Code whose behavior no test checks; zero missed mutants |
 | coverage | cargo-llvm-cov `--fail-under-lines` | Line coverage below `COVERAGE_FAIL_UNDER_LINES` (ratchet, only goes up) |
 | powerset | cargo-hack `--feature-powerset` | Feature combinations that do not compile |
 | miri | miri on the pinned nightly | Undefined behavior, mostly in dependencies |

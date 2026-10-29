@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# rusti-graben standard runner. Identical in every repository: scripts/adopt.sh
+# keeps it in sync, so edit it in the template, never here. Repository-specific
+# gates, overrides and tools go in mk.local.
+#
 # Single entrypoint for every gate. CI calls exactly these tasks.
 # A gate either runs and can fail, or is skipped because it cannot apply
 # (printed with a reason). A missing tool, or one at the wrong version, is a failure.
@@ -8,6 +12,17 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 # shellcheck source=mk.versions
 . ./mk.versions
+
+# Repository-specific settings (see the template's mk.local for every key).
+LOCAL_CI_GATES=()       # cargo-make tasks added to ./mk ci
+LOCAL_NIGHTLY_GATES=()  # cargo-make tasks added to ./mk ci-nightly
+LOCAL_OVERRIDES=()      # standard gates this repository runs as its own cargo-make task
+LOCAL_SETUP=()          # cargo-make tasks ./mk setup runs in every tier (installs mk cannot pin)
+LOCAL_CARGO_TOOLS=()    # extra crate@version tools, pinned like mk.versions
+LOCAL_SYSTEM_PACKAGES=() # apt packages ./mk setup installs on CI (Linux runners)
+COVERAGE_FAIL_UNDER_LINES=100
+# shellcheck source=mk.local
+if [ -f mk.local ]; then . ./mk.local; fi
 
 SKIP_RC=78
 CI_GATES=(tools actions shell commits ratchet fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes semver wasm mutants-diff)
@@ -19,6 +34,13 @@ cmd="${1:-ci}"
 shift || true
 
 die() { echo "ERROR: $*" >&2; exit 1; }
+
+cargo_make() {
+    [ -f Makefile.toml ] || die "no Makefile.toml for cargo-make task '$1'"
+    need cargo-make
+    exec cargo make --no-workspace "$@"
+}
+
 
 # Not applicable here: exit 0 when run directly, SKIP_RC when run by a tier.
 skip() {
@@ -56,7 +78,7 @@ tool_version() {
         cargo-*) cargo "${1#cargo-}" --version ;;
         tombi) tombi --version ;;
         shellcheck) shellcheck --version ;;
-        *) echo "unknown tool $1" >&2; return 1 ;;
+        *) "$1" --version ;; # a crate whose binary has its name (mk.local tools)
     esac
 }
 
@@ -81,7 +103,7 @@ require_tools() {
 
 spec_of() {
     local spec
-    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${CARGO_TOOLS_EXPERIMENTAL[@]}"; do
+    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${CARGO_TOOLS_EXPERIMENTAL[@]}" "${LOCAL_CARGO_TOOLS[@]}"; do
         if [ "${spec%@*}" = "$1" ]; then echo "$spec"; return; fi
     done
     die "$1 is not pinned in mk.versions"
@@ -122,7 +144,11 @@ install_cargo_tools() {
     command -v cargo-binstall >/dev/null || die "cargo-binstall is required: https://github.com/cargo-bins/cargo-binstall"
     local spec
     for spec in "$@"; do
-        has_version "${spec%@*}" "${spec#*@}" || cargo binstall --no-confirm --locked --force "$spec"
+        if ! has_version "${spec%@*}" "${spec#*@}"; then
+            # Prebuilt when the crate publishes binaries; otherwise build it.
+            cargo binstall --no-confirm --locked --force "$spec" ||
+                cargo install --locked --force "${spec%@*}" --version "${spec#*@}"
+        fi
         require_spec "$spec"
     done
 }
@@ -154,13 +180,33 @@ run_tier() {
     echo "==> $tier passed"
 }
 
+# A standard gate this repository implements itself: `gate` or `gate=task`.
+for override in "${LOCAL_OVERRIDES[@]}"; do
+    if [ "${override%%=*}" = "$cmd" ]; then
+        echo "($cmd: this repository's own task '${override#*=}', see LOCAL_OVERRIDES in mk.local)"
+        cargo_make "${override#*=}" "$@"
+    fi
+done
+
 case "$cmd" in
     --list | --list-all-steps)
         printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" "${EXPERIMENTAL_GATES[@]}" \
             ci ci-nightly ci-release ci-experimental coverage-baseline selftest | sort -u
+        for t in "${LOCAL_CI_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]}"; do echo "local:$t"; done
+        if [ -f Makefile.toml ]; then echo "(any other name runs that cargo-make task)"; fi
         ;;
     setup)
         tier="${1:-all}"
+        if [ "${#LOCAL_SYSTEM_PACKAGES[@]}" -gt 0 ]; then
+            if [ "${CI:-}" = true ] && command -v apt-get >/dev/null; then
+                sudo apt-get update -qq
+                sudo apt-get install -y --no-install-recommends "${LOCAL_SYSTEM_PACKAGES[@]}"
+            else
+                echo "note: this repository needs the system packages: ${LOCAL_SYSTEM_PACKAGES[*]}"
+            fi
+        fi
+        install_cargo_tools "${LOCAL_CARGO_TOOLS[@]}"
+        for t in "${LOCAL_SETUP[@]}"; do cargo make --no-workspace "$t"; done
         rustup toolchain install # from rust-toolchain.toml
         rustup toolchain install "$(msrv)" --profile minimal
         install_tombi
@@ -178,7 +224,7 @@ case "$cmd" in
     tools)
         require tombi "$TOMBI_VERSION"
         require shellcheck "$SHELLCHECK_VERSION"
-        require_tools "${CARGO_TOOLS_CI[@]}"
+        require_tools "${CARGO_TOOLS_CI[@]}" "${LOCAL_CARGO_TOOLS[@]}"
         ;;
     actions) need zizmor; zizmor --offline .github ;;
     shell)
@@ -195,9 +241,9 @@ case "$cmd" in
         shellcheck --external-sources --severity=style "${scripts[@]}"
         ;;
     ratchet)
-        # Ratchets in mk.versions may only go up relative to the base branch.
+        # The coverage floor in mk.local may only go up relative to the base branch.
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
-        old="$(git show "$(git merge-base "$base" HEAD):mk.versions" 2>/dev/null | sed -n 's/^COVERAGE_FAIL_UNDER_LINES="\([0-9]*\)"/\1/p')"
+        old="$( (git show "$(git merge-base "$base" HEAD):mk.local" 2>/dev/null || true) | sed -n 's/^COVERAGE_FAIL_UNDER_LINES="*\([0-9]*\)"*/\1/p')"
         [ -n "$old" ] || skip "no ratchet on $base yet"
         [ "$COVERAGE_FAIL_UNDER_LINES" -ge "$old" ] ||
             die "COVERAGE_FAIL_UNDER_LINES went down from $old to $COVERAGE_FAIL_UNDER_LINES"
@@ -281,8 +327,8 @@ case "$cmd" in
         ;;
     mutants)
         need cargo-mutants
-        # Exit 2 = missed mutants, 3 = timeouts: both fail. Exclusions live in mutants.toml.
-        cargo mutants --workspace --all-features --config mutants.toml
+        # Exit 2 = missed mutants, 3 = timeouts: both fail. Exclusions live in .cargo/mutants.toml.
+        cargo mutants --workspace --all-features
         ;;
     mutants-diff)
         # Mutants in code changed against the base branch (and uncommitted changes), on every PR.
@@ -292,7 +338,7 @@ case "$cmd" in
         trap 'rm -f "$diff"' EXIT
         git diff --no-ext-diff --no-color "$(git merge-base "$base" HEAD)" -- '*.rs' >"$diff"
         [ -s "$diff" ] || skip "no Rust changes against $base"
-        cargo mutants --workspace --all-features --config mutants.toml --in-diff "$diff"
+        cargo mutants --workspace --all-features --in-diff "$diff"
         ;;
     coverage)
         need cargo-llvm-cov
@@ -304,14 +350,19 @@ case "$cmd" in
         need cargo-llvm-cov
         pct="$(cargo llvm-cov --workspace --all-features --locked --summary-only | awk '/^TOTAL/{sub(/%/, "", $10); print int($10)}')"
         [ -n "$pct" ] || die "could not read line coverage"
-        sed -i.bak "s/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES=\"$pct\"/" mk.versions && rm mk.versions.bak
+        if grep -q '^COVERAGE_FAIL_UNDER_LINES=' mk.local 2>/dev/null; then
+            sed -i.bak "s/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES=\"$pct\"/" mk.local && rm mk.local.bak
+        else
+            printf '\n# Ratchet: may only go up (./mk ratchet). Set with ./mk coverage-baseline.\nCOVERAGE_FAIL_UNDER_LINES="%s"\n' "$pct" >>mk.local
+        fi
         echo "COVERAGE_FAIL_UNDER_LINES: $COVERAGE_FAIL_UNDER_LINES -> $pct (the ratchet gate rejects a decrease against the base branch)"
         ;;
     powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
     miri) cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked ;;
     outdated) need cargo-outdated; cargo outdated --workspace --root-deps-only --exit-code 1 ;;
-    ci) run_tier ci "${CI_GATES[@]}" ;;
-    ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" ;;
+    ci) run_tier ci "${CI_GATES[@]}" "${LOCAL_CI_GATES[@]/#/local:}" ;;
+    ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]/#/local:}" ;;
+    local:*) cargo_make "${cmd#local:}" "$@" ;;
     ci-experimental) run_tier ci-experimental "${EXPERIMENTAL_GATES[@]}" ;;
     ci-release)
         "$0" ci
@@ -321,5 +372,10 @@ case "$cmd" in
         [ -x tests/gate_selftest.sh ] || skip "the gate selftest lives in the rusti-graben template only"
         tests/gate_selftest.sh
         ;;
-    *) echo "Usage: ./mk {$(./mk --list | paste -sd'|' -)}"; exit 1 ;;
+    *)
+        # Anything else is a repository task (cargo-make), when there is a Makefile.toml.
+        if [ -f Makefile.toml ]; then cargo_make "$cmd" "$@"; fi
+        echo "Usage: ./mk {$(./mk --list | grep -v '^(' | paste -sd'|' -)}"
+        exit 1
+        ;;
 esac

@@ -17,7 +17,3 @@ CARGO_TOOLS_EXPERIMENTAL=(refquiem@0.3.2)
 TOMBI_VERSION="1.9.7"
 # renovate: github-releases koalaman/shellcheck
 SHELLCHECK_VERSION="0.11.0"
-
-# Ratchets: may only go up (./mk ratchet compares with the base branch).
-# Set from a measurement with ./mk coverage-baseline.
-COVERAGE_FAIL_UNDER_LINES="100"

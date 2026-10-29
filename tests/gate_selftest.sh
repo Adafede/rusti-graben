@@ -214,7 +214,7 @@ printf 'targets = ["wasm32-unknown-unknown"]\n' >>rust-toolchain.toml
 append_lib 'pub use std::os::unix::ffi::OsStrExt;'
 expect_fail wasm "unix" "code that does not build for wasm32"
 
-perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="1"/' mk.versions
+perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="1"/' mk.local
 expect_fail ratchet "went down" "coverage floor lowered"
 
 append_lib "// $typo"
@@ -254,7 +254,7 @@ before="$(fingerprint "$legacy")"
 check "dry run succeeds" adopt 1 "$legacy"
 check "dry run writes nothing" test "$before" = "$(fingerprint "$legacy")"
 check "apply succeeds" adopt 0 "$legacy"
-for f in mk mk.versions deny.toml .echoes.toml .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
+for f in mk mk.versions mk.local deny.toml .echoes.toml .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
     check "copies $f" test -f "$legacy/$f"
 done
 check "mk is executable" test -x "$legacy/mk"
@@ -266,6 +266,27 @@ check "deny no longer allows the template's AGPL license" bash -c '! grep -q AGP
 before="$(fingerprint "$legacy")"
 check "second apply succeeds" adopt 0 "$legacy"
 check "second apply changes nothing" test "$before" = "$(fingerprint "$legacy")"
+
+check "mk.local does not inherit the template's coverage floor" bash -c '! grep -q "^COVERAGE_FAIL_UNDER_LINES" "$1/mk.local"' _ "$legacy"
+check "a stale standard file is synced" bash -c 'echo "# stale" >>"$1/mk.versions" && DRY_RUN=0 "$2/scripts/adopt.sh" "$1" && ! grep -q "# stale" "$1/mk.versions"' _ "$legacy" "$SRC"
+
+wrapped="$OUTSIDE/cargo-make-repo"
+mkdir -p "$wrapped/src"
+printf '[package]\nname = "wrapped"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$wrapped/Cargo.toml"
+echo '//! Wrapped.' >"$wrapped/src/lib.rs"
+printf '[tasks.hello]\nscript = "echo hello"\n' >"$wrapped/Makefile.toml"
+printf '#!/usr/bin/env bash\nexec cargo make --no-workspace "$@"\n' >"$wrapped/mk"
+chmod +x "$wrapped/mk"
+check "cargo-make wrapper: apply succeeds" adopt 0 "$wrapped"
+check "cargo-make wrapper: replaced by the standard mk" grep -q "rusti-graben standard runner" "$wrapped/mk"
+check "cargo-make wrapper: cargo-make pinned in mk.local" grep -q "^LOCAL_CARGO_TOOLS=(cargo-make@" "$wrapped/mk.local"
+
+custom="$OUTSIDE/custom-runner"
+mkdir -p "$custom/src"
+printf '[package]\nname = "custom"\nversion = "0.1.0"\nedition = "2024"\n' >"$custom/Cargo.toml"
+printf '#!/bin/sh\necho mine\n' >"$custom/mk"
+check "own runner: adopt refuses" bash -c '! DRY_RUN=0 "$2/scripts/adopt.sh" "$1"' _ "$custom" "$SRC"
+check "own runner: left untouched" grep -qx 'echo mine' "$custom/mk"
 
 single="$OUTSIDE/single-crate"
 mkdir -p "$single/src"

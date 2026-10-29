@@ -1,3 +1,3 @@
-# cargo-mutants config, passed explicitly by `./mk mutants`.
+# cargo-mutants config (its default location), read by `./mk mutants` and `./mk mutants-diff`.
 # Policy: zero missed mutants. Prefer a test that kills a mutant over an exclusion;
 # every `exclude_globs` / `exclude_re` entry needs a comment saying why no test can.

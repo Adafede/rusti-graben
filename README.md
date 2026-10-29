@@ -25,7 +25,7 @@ scripts/adopt.sh path/to/repo             # dry run
 DRY_RUN=0 scripts/adopt.sh path/to/repo   # apply
 ```
 
-See [`docs/ADOPTING.md`](./docs/ADOPTING.md) for what it changes and how to record legacy findings without weakening a gate.
+Re-run it any time to bring the repository's standard runner (`mk`, `mk.versions`, the CI setup action) up to date. Repository-specific gates, tools and overrides live in `mk.local`, which it never touches; cargo-make tasks keep working through `./mk <task>`. See [`docs/ADOPTING.md`](./docs/ADOPTING.md), including how to record legacy findings without weakening a gate.
 
 ## Tiers
 

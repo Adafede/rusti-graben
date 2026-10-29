@@ -21,6 +21,7 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 - **Single entrypoint**: Always use `./mk <task>`. Do not invoke cargo/rustfmt/clippy/typos/cargo-deny/cargo-audit/cargo-machete/etc directly.
 - **Hard failures**: All gates must fail hard on violations. No `|| true`, no silent skips.
 - **Version pinning**: Toolchain in `rust-toolchain.toml`, every tool in `mk.versions`; gates refuse other versions.
+- **Standard vs local**: `mk`, `mk.versions` and the CI setup action are identical in every repo (synced by `scripts/adopt.sh`); never edit them in place. Repo-specific gates, overrides and tools go in `mk.local`. Unknown `./mk <task>` names run that cargo-make task.
 - **Strict lints**: `unsafe_code = forbid`, `unwrap_used = deny` at workspace level.
 - **Pre-commit**: Use `prek` hooks that call `./mk`.
 

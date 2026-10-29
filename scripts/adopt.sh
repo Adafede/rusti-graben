@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Adopt the rusti-graben gates in an existing Rust repository.
+# Adopt the rusti-graben gates in an existing Rust repository, or bring an
+# adopted one up to date with the template.
 #
 #   scripts/adopt.sh <repo>              # dry run: print what would change
 #   DRY_RUN=0 scripts/adopt.sh <repo>    # apply
 #
-# Idempotent. Never overwrites: an existing file is kept and its diff against
-# the template is printed for a manual merge. Every gate stays on; legacy
-# noise is recorded as described in docs/ADOPTING.md.
+# Idempotent. The standard runner (mk, mk.versions, the setup action) is synced
+# to the template's; repository-specific settings live in mk.local, which is
+# never overwritten. Any other existing file is kept and its diff against the
+# template printed for a manual merge. Every gate stays on; legacy noise is
+# recorded as described in docs/ADOPTING.md.
 # `sh -c` snippets are single-quoted on purpose: "$1" expands in the subshell.
 # shellcheck disable=SC2016
 set -euo pipefail
@@ -15,16 +18,18 @@ TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET_DIR="$(cd "${1:-.}" && pwd)"
 DRY_RUN="${DRY_RUN:-1}"
 
+# Standard: always synced to the template (they hold no repository settings).
+STANDARD=(mk mk.versions .github/actions/setup/action.yml)
+MARKER="rusti-graben standard runner"
 # Copied when missing. The template's own selftest and sample crates are not.
 FILES=(
-    mk mk.versions
-    rust-toolchain.toml rustfmt.toml clippy.toml deny.toml mutants.toml
+    rust-toolchain.toml rustfmt.toml clippy.toml deny.toml .cargo/mutants.toml
     .echoes.toml .tombi.toml .typos.toml prek.toml AGENTS.md
-    .github/actions/setup/action.yml
     .github/workflows/ci.yml .github/workflows/nightly.yml .github/workflows/release.yml
     .github/dependabot.yml renovate.json
 )
 GITIGNORE_LINES=(lcov.info 'mutants.out*/')
+CARGO_MAKE_VERSION="0.37.24"
 
 [ -f "$TARGET_DIR/Cargo.toml" ] || { echo "ERROR: $TARGET_DIR has no Cargo.toml" >&2; exit 1; }
 [ "$TARGET_DIR" != "$TEMPLATE_DIR" ] || { echo "ERROR: target is the template itself" >&2; exit 1; }
@@ -49,6 +54,31 @@ cd "$TARGET_DIR"
 root=Cargo.toml
 if grep -q '^\[workspace\]' "$root"; then layout=workspace; else layout=single; fi
 echo "==> $TARGET_DIR ($layout crate layout, DRY_RUN=$DRY_RUN)"
+
+echo "==> Standard runner"
+if [ -e mk ] && ! grep -q "$MARKER" mk; then
+    if grep -q 'cargo make' mk; then
+        echo "    mk wraps cargo-make: the standard mk replaces it and runs every other task through cargo-make"
+    else
+        echo "ERROR: mk is this repository's own runner; port its tasks to mk.local first" >&2
+        exit 1
+    fi
+fi
+for f in "${STANDARD[@]}"; do
+    if [ ! -e "$f" ]; then
+        act "add $f" copy_file "$TEMPLATE_DIR/$f" "$f"
+    elif ! diff -q "$f" "$TEMPLATE_DIR/$f" >/dev/null; then
+        act "sync $f with the template" copy_file "$TEMPLATE_DIR/$f" "$f"
+    fi
+done
+if [ ! -e mk.local ]; then
+    # The template's documented keys, without its own coverage floor.
+    act "add mk.local" sh -c 'sed "/^# Ratchet:/,\$d" "$1" >mk.local' _ "$TEMPLATE_DIR/mk.local"
+    if [ -f Makefile.toml ]; then
+        act "pin cargo-make in mk.local" sh -c 'printf "LOCAL_CARGO_TOOLS=(cargo-make@%s)\n" "$1" >>mk.local' _ "$CARGO_MAKE_VERSION"
+        echo "    TODO: list this repository's own cargo-make gates in mk.local (LOCAL_CI_GATES, LOCAL_OVERRIDES)"
+    fi
+fi
 
 echo "==> Gate files"
 for f in "${FILES[@]}"; do
