@@ -1,13 +1,16 @@
 # Configuration file for `prek` - git hook framework
-# Hooks must only call `./mk <task>` per rusti-graben conventions
+# Hooks must only call `./mk <task>` per rusti-graben conventions.
+# pre-commit stays fast; pre-push runs the full blocking tier, exactly as CI does.
 
-default_stages = ["pre-commit"]
+default_install_hook_types = ["pre-commit", "pre-push"]
 fail_fast = false
 
 [[repos]]
 repo = "local"
 hooks = [
-  { id = "cargo-fmt-check", name = "cargo-fmt-check", language = "system", entry = "./mk fmt", pass_filenames = false, always_run = true },
-  { id = "cargo-clippy", name = "cargo-clippy", language = "system", entry = "./mk lint", pass_filenames = false, always_run = true },
-  { id = "cargo-test", name = "cargo-test", language = "system", entry = "./mk test", pass_filenames = false, always_run = true },
+  { id = "fmt", name = "./mk fmt", language = "system", entry = "./mk fmt", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "tombi", name = "./mk tombi", language = "system", entry = "./mk tombi", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "typos", name = "./mk typos", language = "system", entry = "./mk typos", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "lint", name = "./mk lint", language = "system", entry = "./mk lint", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "ci", name = "./mk ci", language = "system", entry = "./mk ci", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 ]

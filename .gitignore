@@ -14,3 +14,7 @@
 
 # Temporary files
 **/*.rs.bk
+
+# Gate outputs
+lcov.info
+mutants.out*/

@@ -1,2 +1,2 @@
-msrv = "1.97"
+# MSRV comes from `rust-version` in Cargo.toml; do not duplicate it here.
 avoid-breaking-exported-api = true

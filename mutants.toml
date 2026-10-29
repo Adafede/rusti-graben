@@ -1,4 +1,3 @@
-# Mutation testing configuration for cargo-mutants
-# Survivors fail against baseline; all settings may only tighten.
-[mutants]
-# Ratchet: tighten over time
+# cargo-mutants config, passed explicitly by `./mk mutants`.
+# Policy: zero missed mutants. Prefer a test that kills a mutant over an exclusion;
+# every `exclude_globs` / `exclude_re` entry needs a comment saying why no test can.

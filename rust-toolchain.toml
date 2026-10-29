@@ -1,4 +1,5 @@
+# Pinned so local and CI compile with the same compiler; bump via Renovate.
 [toolchain]
-channel = "stable"
-components = ["rustfmt", "clippy", "rust-docs"]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
 targets = ["wasm32-unknown-unknown"]

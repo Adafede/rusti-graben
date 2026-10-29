@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
   "crates/sample-bin",
   "crates/sample-lib",
@@ -7,7 +7,6 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
-authors = ["Rusti-Graben Maintainers"]
 edition = "2024"
 rust-version = "1.85"
 repository = "https://github.com/adafede/rusti-graben"
@@ -15,16 +14,23 @@ license = "AGPL-3.0-or-later"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+# Every suppression is an `#[expect(..., reason = "...")]`: it fails once it is no longer needed.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+dbg_macro = "deny"
 expect_used = "warn"
 nursery = { level = "warn", priority = -1 }
 panic = "deny"
 pedantic = { level = "warn", priority = -1 }
+todo = "deny"
+unimplemented = "deny"
 unwrap_used = "deny"
 
 [workspace.lints.rust]
+missing_debug_implementations = "warn"
 missing_docs = "warn"
 rust_2018_idioms = { level = "deny", priority = -1 }
+unreachable_pub = "warn"
 unsafe_code = "forbid"
-
-[workspace.metadata.msrv]
-rust-version = "1.85"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"

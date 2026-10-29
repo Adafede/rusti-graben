@@ -1,9 +1,10 @@
 [package]
 name = "sample-lib"
 version.workspace = true
-authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+description = "Sample library demonstrating the rusti-graben gates."
+repository.workspace = true
 license.workspace = true
 
 [lints]

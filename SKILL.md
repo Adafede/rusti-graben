@@ -20,7 +20,7 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 ## Rules
 - **Single entrypoint**: Always use `./mk <task>`. Do not invoke cargo/rustfmt/clippy/typos/cargo-deny/cargo-audit/cargo-machete/etc directly.
 - **Hard failures**: All gates must fail hard on violations. No `|| true`, no silent skips.
-- **Version pinning**: Tools are pinned where applicable.
+- **Version pinning**: Toolchain in `rust-toolchain.toml`, every tool in `mk.versions`; gates refuse other versions.
 - **Strict lints**: `unsafe_code = forbid`, `unwrap_used = deny` at workspace level.
 - **Pre-commit**: Use `prek` hooks that call `./mk`.
 
@@ -31,11 +31,11 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 ```
 
 ## Gates (./mk ci)
-fmt, lint, test, doc, deny, audit, typos, tombi, machete, msrv (skipped if not applicable), semver (non-blocking for unpublished), echoes/refquiem (non-blocking if missing), wasm (if applicable). All must pass.
+tools, actions, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, refquiem, semver (skips only with no lib or no earlier `v*` tag), wasm (skips only with no wasm32 target). All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/HYGIENE-AUDIT.md`.
 
 ## Commands
 - `./mk --list` - List all tasks
-- `./mk setup` - Install toolchain and pinned tools
+- `./mk setup [ci|nightly|all]` - Install toolchains and pinned tools (needs cargo-binstall)
 - `./mk fmt` - Check formatting (rustfmt + typos + tombi)
 - `./mk lint` - Clippy with `-D warnings`
 - `./mk test` - Run tests
@@ -48,6 +48,7 @@ fmt, lint, test, doc, deny, audit, typos, tombi, machete, msrv (skipped if not a
 - `./mk ci` - All blocking gates
 - `./mk ci-nightly` - Nightly checks (mutants, coverage, powerset, miri, outdated)
 - `./mk ci-release` - Release checks
+- `./mk selftest` - Inject one violation per gate and assert each gate fails
 
 ## Adoption
 Use `scripts/adopt.sh` to migrate existing repos. It detects layout, does diff-before-overwrite, and provides a migration checklist.
