@@ -1,5 +1,5 @@
-# Pinned so local and CI compile with the same compiler; bump via Renovate.
+# Pinned so local and CI compile with the same compiler; bumped by Renovate.
+# Add `targets = ["wasm32-unknown-unknown"]` to enable the wasm gate.
 [toolchain]
 channel = "1.99.1"
 components = ["clippy", "rustfmt"]
-targets = ["wasm32-unknown-unknown"]

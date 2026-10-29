@@ -1,0 +1,39 @@
+name: Template Selftest
+
+# Template only (scripts/adopt.sh does not copy it): proves every gate can fail.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ github.token }} # binstall rate limits
+
+jobs:
+  selftest:
+    name: ./mk selftest (every gate can fail)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # semver compares with the last tag; commits, ratchet and mutants-diff with the base branch
+          persist-credentials: false
+
+      - name: Setup
+        uses: $/.github/actions/setup
+        with:
+          tier: all
+
+      - name: Inject one violation per gate and assert failure
+        run: ./mk selftest

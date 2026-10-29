@@ -197,17 +197,25 @@ git commit -qam "add subtract"
 git checkout -q base -- "$LIB"
 git commit -qam "drop subtract"
 echo 'Call `subtract` to take away.' >>README.md
-expect_fail refquiem "sample_lib::subtract" "mention of a deleted item"
+expect_fail refquiem "sample_lib::subtract" "mention of a deleted item (experimental gate)"
 
+# Semver applies from 1.0.0 on; pre-1.0 crates are in development.
+perl -pi -e 's/^version = "0\.1\.0"/version = "1.0.0"/' Cargo.toml
+perl -pi -e 's/version = "0\.1\.0"/version = "1.0.0"/' crates/sample-bin/Cargo.toml
+cargo update --workspace --offline --quiet
 append_lib "$untested_fn"
 git commit -qam "add double"
-git tag v0.1.0
+git tag v1.0.0
 git checkout -q base -- "$LIB"
 git commit -qam "drop double"
 expect_fail semver "function_missing" "public fn removed without a major bump"
 
+printf 'targets = ["wasm32-unknown-unknown"]\n' >>rust-toolchain.toml
 append_lib 'pub use std::os::unix::ffi::OsStrExt;'
 expect_fail wasm "unix" "code that does not build for wasm32"
+
+perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="1"/' mk.versions
+expect_fail ratchet "went down" "coverage floor lowered"
 
 append_lib "// $typo"
 expect_fail ci "FAIL  typos" "ci tier propagates a failing gate"
@@ -231,24 +239,42 @@ check() {
     shift
     if "$@" >/dev/null 2>&1; then echo "ok           adopt: $what"; else echo "FAILED       adopt: $what"; failed=1; fi
 }
-adopted_files=(mk mk.versions deny.toml rust-toolchain.toml clippy.toml rustfmt.toml .echoes.toml .tombi.toml .typos.toml mutants.toml prek.toml)
-all_present() { for f in "${adopted_files[@]}"; do [ -f "$1/$f" ] || return 1; done; }
-none_present_but_deny() { for f in "${adopted_files[@]}"; do [ "$f" = deny.toml ] || [ ! -e "$1/$f" ] || return 1; done; }
-fingerprint() { (cd "$1" && cat "${adopted_files[@]}" | cksum); }
+adopt() { DRY_RUN="$1" "$SRC/scripts/adopt.sh" "$2"; }
+# Everything adopt.sh may touch, to prove dry runs and re-runs change nothing.
+fingerprint() { (cd "$1" && find . -path ./target -prune -o -type f -print | LC_ALL=C sort | xargs cksum | cksum); }
 
-target="$OUTSIDE/adopt-target"
-mkdir -p "$target"
-printf '[package]\nname = "legacy"\nversion = "0.1.0"\nedition = "2021"\n' >"$target/Cargo.toml"
-printf '# legacy policy\n' >"$target/deny.toml"
-check "dry run writes nothing" env DRY_RUN=1 "$SRC/scripts/adopt.sh" "$target"
-check "dry run left the repo untouched" none_present_but_deny "$target"
-check "apply copies every gate config" env DRY_RUN=0 "$SRC/scripts/adopt.sh" "$target"
-check "every gate config is present" all_present "$target"
-check "mk is executable" test -x "$target/mk"
-check "existing config is kept" grep -qx '# legacy policy' "$target/deny.toml"
-before="$(fingerprint "$target")"
-check "second apply succeeds" env DRY_RUN=0 "$SRC/scripts/adopt.sh" "$target"
-check "second apply changes nothing" test "$before" = "$(fingerprint "$target")"
+legacy="$OUTSIDE/legacy-workspace"
+mkdir -p "$legacy/crates/core/src"
+printf '[workspace]\nmembers = ["crates/core"]\nresolver = "3"\n' >"$legacy/Cargo.toml"
+printf '[package]\nname = "core-x"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$legacy/crates/core/Cargo.toml"
+echo '//! Core.' >"$legacy/crates/core/src/lib.rs"
+printf '# legacy policy\n' >"$legacy/.typos.toml"
+(cd "$legacy" && cargo generate-lockfile --offline --quiet)
+before="$(fingerprint "$legacy")"
+check "dry run succeeds" adopt 1 "$legacy"
+check "dry run writes nothing" test "$before" = "$(fingerprint "$legacy")"
+check "apply succeeds" adopt 0 "$legacy"
+for f in mk mk.versions deny.toml .echoes.toml .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
+    check "copies $f" test -f "$legacy/$f"
+done
+check "mk is executable" test -x "$legacy/mk"
+check "does not copy the template selftest" test ! -e "$legacy/.github/workflows/selftest.yml"
+check "keeps an existing config" grep -qx '# legacy policy' "$legacy/.typos.toml"
+check "adds workspace lints" grep -q '^\[workspace\.lints\.clippy\]' "$legacy/Cargo.toml"
+check "members inherit them" bash -c 'cd "$1" && git init -q && ./mk lints-inherit' _ "$legacy"
+check "deny no longer allows the template's AGPL license" bash -c '! grep -q AGPL "$1/deny.toml"' _ "$legacy"
+before="$(fingerprint "$legacy")"
+check "second apply succeeds" adopt 0 "$legacy"
+check "second apply changes nothing" test "$before" = "$(fingerprint "$legacy")"
+
+single="$OUTSIDE/single-crate"
+mkdir -p "$single/src"
+printf '[package]\nname = "single"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MPL-2.0"\n' >"$single/Cargo.toml"
+echo '//! Single.' >"$single/src/lib.rs"
+check "single crate: apply succeeds" adopt 0 "$single"
+check "single crate: adds [lints.*] tables" grep -q '^\[lints\.clippy\]' "$single/Cargo.toml"
+check "single crate: lints gate passes" bash -c 'cd "$1" && git init -q && ./mk lints-inherit' _ "$single"
+check "single crate: deny allows its own license" grep -q '"MPL-2.0", # this project' "$single/deny.toml"
 
 [ "$failed" = 0 ] || { echo "selftest: some gates cannot fail as they should" >&2; exit 1; }
 echo "==> every gate failed on its injected violation"

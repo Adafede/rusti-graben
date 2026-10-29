@@ -1,9 +1,11 @@
 # AGENTS.md
 
-This repository follows the rusti-graben hygiene baseline.
+This repository uses the [rusti-graben](https://github.com/Adafede/rusti-graben) quality gates.
 
-- **Single entrypoint**: Always use `./mk <task>`. CI and local runs must be identical.
-- **No direct tool invocation**: Do not call cargo/rustfmt/clippy/typos/etc directly in CI scripts; add tasks to `mk`.
-- **Strict lints**: `unsafe_code = forbid`, `unwrap_used = deny` at workspace level. Do not weaken gates.
-- **Pre-commit**: Use `prek` (hooks must call `./mk`). Slow gates stay out of fast hooks.
-- **Adoption**: Use `scripts/adopt.sh` (idempotent, dry-run by default).
+- **Single entrypoint**: run `./mk <task>` (`./mk --list` shows them). CI calls the same tasks, so a green `./mk ci` locally means a green CI.
+- **Never weaken a gate.** Record unavoidable exceptions where they are reviewed:
+  `#[expect(lint, reason = "...")]` (not `#[allow]`), `// echoes: allow` above an intentional copy,
+  a commented `mutants.toml` exclusion, a `deny.toml` `skip` entry with a reason.
+- **Pinned tools**: versions live in `mk.versions`; `./mk setup` installs them. Do not install other versions.
+- **Commits** follow Conventional Commits (`feat:`, `fix:`, `chore(deps):`, ...); `./mk commits` checks the branch.
+- **Before finishing a change**: `./mk ci`. New code needs tests that kill its mutants (`./mk mutants-diff`).

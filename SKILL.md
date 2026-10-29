@@ -31,7 +31,7 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 ```
 
 ## Gates (./mk ci)
-tools, actions, shell, commits, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, refquiem, semver (skips only with no lib or no earlier `v*` tag), wasm (skips only with no wasm32 target), mutants-diff (mutation testing of the branch's changes). All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/HYGIENE-AUDIT.md`.
+tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, semver (skips with no lib, pre-1.0 crates, or no earlier `v*` tag), wasm (only when wasm32 is declared), mutants-diff (mutation testing of the branch's changes). refquiem is experimental: `./mk ci-experimental`, not enforced. All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/GATES.md`.
 
 ## Commands
 - `./mk --list` - List all tasks
@@ -48,10 +48,12 @@ tools, actions, shell, commits, fmt, tombi, typos, lint, lints-inherit, test, do
 - `./mk ci` - All blocking gates
 - `./mk ci-nightly` - Nightly checks (mutants, coverage, powerset, miri, outdated)
 - `./mk ci-release` - Release checks
+- `./mk ci-experimental` - Experimental gates (refquiem), not enforced
+- `./mk coverage-baseline` - Set the coverage floor to today's coverage
 - `./mk selftest` - Inject one violation per gate and assert each gate fails
 
 ## Adoption
-Use `scripts/adopt.sh` to migrate existing repos. It detects layout, does diff-before-overwrite, and provides a migration checklist.
+`DRY_RUN=0 scripts/adopt.sh <repo>` copies the gates, workflows and configs into an existing repo (workspace or single crate), keeps existing files with a diff, adds lints and the repo's own license. See `docs/ADOPTING.md`.
 
 ## CI
 - Tiered workflows: ci, nightly, release

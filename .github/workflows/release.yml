@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # refquiem reads history; semver compares against the last tag
+          fetch-depth: 0 # semver compares with the last tag; commits, ratchet and mutants-diff with the base branch
           persist-credentials: false
 
       - name: Setup

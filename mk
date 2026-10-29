@@ -10,8 +10,10 @@ cd "$ROOT_DIR"
 . ./mk.versions
 
 SKIP_RC=78
-CI_GATES=(tools actions shell commits fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes refquiem semver wasm mutants-diff)
+CI_GATES=(tools actions shell commits ratchet fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes semver wasm mutants-diff)
 NIGHTLY_GATES=(mutants coverage powerset miri outdated)
+# Run on demand only (./mk ci-experimental): not mature enough to block, kept ready to promote.
+EXPERIMENTAL_GATES=(refquiem)
 
 cmd="${1:-ci}"
 shift || true
@@ -79,7 +81,7 @@ require_tools() {
 
 spec_of() {
     local spec
-    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}"; do
+    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${CARGO_TOOLS_EXPERIMENTAL[@]}"; do
         if [ "${spec%@*}" = "$1" ]; then echo "$spec"; return; fi
     done
     die "$1 is not pinned in mk.versions"
@@ -147,13 +149,15 @@ run_tier() {
     done
     echo "=== $tier summary ==="
     printf '%s\n' "${report[@]}"
+    if [ "$tier" = ci ]; then echo "(not enforced: ${EXPERIMENTAL_GATES[*]}; run ./mk ci-experimental)"; fi
     [ "$failed" = 0 ] || die "$tier failed"
     echo "==> $tier passed"
 }
 
 case "$cmd" in
     --list | --list-all-steps)
-        printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" ci ci-nightly ci-release selftest | sort -u
+        printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" "${EXPERIMENTAL_GATES[@]}" \
+            ci ci-nightly ci-release ci-experimental coverage-baseline selftest | sort -u
         ;;
     setup)
         tier="${1:-all}"
@@ -166,6 +170,9 @@ case "$cmd" in
             rustup toolchain install "$RUST_NIGHTLY" --profile minimal --component miri,rust-src
             rustup component add llvm-tools
             install_cargo_tools "${CARGO_TOOLS_NIGHTLY[@]}"
+        fi
+        if [ "$tier" = all ] || [ "$tier" = experimental ]; then
+            install_cargo_tools "${CARGO_TOOLS_EXPERIMENTAL[@]}"
         fi
         ;;
     tools)
@@ -186,6 +193,14 @@ case "$cmd" in
         done < <(git ls-files)
         [ "${#scripts[@]}" -gt 0 ] || skip "no shell scripts"
         shellcheck --external-sources --severity=style "${scripts[@]}"
+        ;;
+    ratchet)
+        # Ratchets in mk.versions may only go up relative to the base branch.
+        base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
+        old="$(git show "$(git merge-base "$base" HEAD):mk.versions" 2>/dev/null | sed -n 's/^COVERAGE_FAIL_UNDER_LINES="\([0-9]*\)"/\1/p')"
+        [ -n "$old" ] || skip "no ratchet on $base yet"
+        [ "$COVERAGE_FAIL_UNDER_LINES" -ge "$old" ] ||
+            die "COVERAGE_FAIL_UNDER_LINES went down from $old to $COVERAGE_FAIL_UNDER_LINES"
         ;;
     commits)
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
@@ -208,6 +223,11 @@ case "$cmd" in
     typos) need typos-cli; typos ;;
     lint) cargo clippy --workspace --all-targets --all-features --locked -- -D warnings ;;
     lints-inherit)
+        if ! grep -q '^\[workspace\.lints' Cargo.toml; then
+            # Single crate: the lints live in its own manifest.
+            grep -q '^\[lints\.' Cargo.toml || die "Cargo.toml has no [lints.*] or [workspace.lints.*] tables"
+            exit 0
+        fi
         # Workspace lints only apply to crates that opt in.
         missing=0
         for manifest in $(cargo metadata --no-deps --format-version 1 --locked | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4); do
@@ -238,6 +258,7 @@ case "$cmd" in
         cargo echoes --all-targets --config .echoes.toml "$@"
         ;;
     refquiem)
+        # Experimental: not in any tier until refquiem matures (see EXPERIMENTAL_GATES).
         need refquiem
         [ "$(git rev-parse --is-shallow-repository)" = false ] || die "refquiem needs full git history (fetch-depth: 0)"
         if [ "${GITHUB_ACTIONS:-}" = true ]; then cargo refquiem --github; else cargo refquiem; fi
@@ -245,12 +266,17 @@ case "$cmd" in
     semver)
         need cargo-semver-checks
         has_lib || skip "no library target"
+        # Pre-1.0 crates are in development: breaking changes need no version bump.
+        if ! cargo metadata --no-deps --format-version 1 --locked | grep -o '"version":"[^"]*"' | grep -qv '"version":"0\.'; then
+            skip "every crate is pre-1.0 (in development), so breaking changes are allowed"
+        fi
         base="$(git tag --merged HEAD --no-contains HEAD --list 'v*' --sort=-v:refname | head -1)"
         [ -n "$base" ] || skip "no earlier v* release tag to compare against"
         cargo semver-checks --workspace --all-features --baseline-rev "$base"
         ;;
     wasm)
-        has_wasm || skip "no wasm32 target declared"
+        has_wasm || skip "no wasm32 target declared in rust-toolchain.toml or Cargo.toml"
+        rustup target add wasm32-unknown-unknown
         cargo check --workspace --target wasm32-unknown-unknown --all-features --locked
         ;;
     mutants)
@@ -273,15 +299,27 @@ case "$cmd" in
         cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info \
             --fail-under-lines "$COVERAGE_FAIL_UNDER_LINES"
         ;;
+    coverage-baseline)
+        # Adoption or after adding tests: set the floor to today's coverage (rounded down).
+        need cargo-llvm-cov
+        pct="$(cargo llvm-cov --workspace --all-features --locked --summary-only | awk '/^TOTAL/{sub(/%/, "", $10); print int($10)}')"
+        [ -n "$pct" ] || die "could not read line coverage"
+        sed -i.bak "s/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES=\"$pct\"/" mk.versions && rm mk.versions.bak
+        echo "COVERAGE_FAIL_UNDER_LINES: $COVERAGE_FAIL_UNDER_LINES -> $pct (the ratchet gate rejects a decrease against the base branch)"
+        ;;
     powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
     miri) cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked ;;
     outdated) need cargo-outdated; cargo outdated --workspace --root-deps-only --exit-code 1 ;;
     ci) run_tier ci "${CI_GATES[@]}" ;;
     ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" ;;
+    ci-experimental) run_tier ci-experimental "${EXPERIMENTAL_GATES[@]}" ;;
     ci-release)
         "$0" ci
         cargo publish --workspace --dry-run --locked
         ;;
-    selftest) tests/gate_selftest.sh ;;
+    selftest)
+        [ -x tests/gate_selftest.sh ] || skip "the gate selftest lives in the rusti-graben template only"
+        tests/gate_selftest.sh
+        ;;
     *) echo "Usage: ./mk {$(./mk --list | paste -sd'|' -)}"; exit 1 ;;
 esac

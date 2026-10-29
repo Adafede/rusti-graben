@@ -2,9 +2,9 @@ name: CI Quality Gate
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # refquiem reads history; semver compares against the last tag
+          fetch-depth: 0 # semver compares with the last tag; commits, ratchet and mutants-diff with the base branch
           persist-credentials: false
 
       - name: Setup
@@ -37,21 +37,3 @@ jobs:
       - name: Run blocking gates
         run: ./mk ci
 
-  selftest:
-    name: ./mk selftest (every gate can fail)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # refquiem reads history; semver compares against the last tag
-          persist-credentials: false
-
-      - name: Setup
-        uses: $/.github/actions/setup
-        with:
-          tier: all
-
-      - name: Inject one violation per gate and assert failure
-        run: ./mk selftest

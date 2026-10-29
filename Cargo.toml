@@ -9,7 +9,7 @@ members = [
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-repository = "https://github.com/adafede/rusti-graben"
+repository = "https://github.com/Adafede/rusti-graben"
 license = "AGPL-3.0-or-later"
 
 [workspace.lints.clippy]
