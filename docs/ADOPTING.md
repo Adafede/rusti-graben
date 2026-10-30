@@ -26,6 +26,7 @@ it to update a repository). Everything specific to a repository lives in
 | `LOCAL_SETUP` | cargo-make tasks `./mk setup` runs in every tier, for installs a pin cannot express |
 | `LOCAL_SYSTEM_PACKAGES` | apt packages `./mk setup` installs on CI |
 | `COVERAGE_FAIL_UNDER_LINES` | the coverage floor (`./mk coverage-baseline`; the `ratchet` gate keeps it from dropping) |
+| `ECHOES_MAX_APPROXIMATE`, `ECHOES_MAX_REUSE` | legacy echoes counts (`./mk echoes-baseline`; the `ratchet` gate keeps them from rising) |
 
 A repository with a `Makefile.toml` keeps its cargo-make tasks: any `./mk` name the
 standard runner does not know runs that task (`./mk web-dev`), always with
@@ -56,6 +57,8 @@ Every gate stays on. What cannot be fixed yet is recorded where reviewers see it
 | Lint | `#[expect(lint, reason = "...")]` at the site (fails once no longer needed) |
 | Duplicate dependency versions | `deny.toml` `[bans] skip`, with a reason |
 | Intentional duplicate code | `// echoes: allow` above the copy, with a reason |
+| Legacy approximate duplicates / dependency reuse | `./mk echoes-baseline` records the counts in `mk.local`; the gate fails if they grow, `ratchet` if they are raised (exact duplicates are always fixed) |
+| Lints the code does not pass yet | a `# Ratchet` block of `allow` lines with counts in the lint table; fix one, delete its line |
 | Mutant no test can kill | `.cargo/mutants.toml` exclusion, with a comment |
 | Coverage below 100% | `./mk coverage-baseline`; the `ratchet` gate then refuses any decrease |
 

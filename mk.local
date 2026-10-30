@@ -14,5 +14,8 @@
 #
 # Any ./mk task name the standard runner does not know runs that cargo-make task.
 
+# ECHOES_MAX_APPROXIMATE=n / ECHOES_MAX_REUSE=n  legacy echoes counts (./mk echoes-baseline);
+#                                 only go down (./mk ratchet); exact duplicates are always 0
+#
 # Ratchet: may only go up (./mk ratchet). Set with ./mk coverage-baseline.
 COVERAGE_FAIL_UNDER_LINES="100"

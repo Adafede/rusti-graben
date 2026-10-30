@@ -13,7 +13,7 @@ the gate fails for that reason (template CI, every PR).
 | actions | zizmor (offline), `.github/` | Unpinned actions, credential leaks, injection in workflows and the shared setup action | Action pinned to a tag |
 | shell | shellcheck | Quoting, word-splitting and portability bugs in `mk` and every tracked script | Unquoted `$1` |
 | commits | `./mk` (Conventional Commits regex) | Commit subjects on the branch that break the convention (changelogs, release tooling) | `Update the library` |
-| ratchet | `./mk` vs. the base branch | A lowered `COVERAGE_FAIL_UNDER_LINES` | Floor lowered to 1 |
+| ratchet | `./mk` vs. the base branch | A lowered `COVERAGE_FAIL_UNDER_LINES`, a raised `ECHOES_MAX_*` | Floor lowered to 1; echoes maximum raised |
 | fmt | rustfmt | Unformatted Rust | Unformatted function |
 | tombi | tombi format + lint | Unformatted or schema-invalid TOML, unreadable tombi config | Unformatted table |
 | typos | typos | Misspellings in code and docs | Misspelled comment |
@@ -25,7 +25,7 @@ the gate fails for that reason (template CI, every PR).
 | audit | cargo-audit `--deny warnings` | RUSTSEC advisories, unmaintained and yanked crates | Vulnerable `smallvec` in lockfile |
 | machete | cargo-machete | Unused dependencies | Unused `itoa` |
 | msrv | `cargo +<rust-version> check` | Code that does not build on the declared MSRV | `is_multiple_of` (1.87) |
-| echoes | echoes (`cargo echoes`, `.echoes.toml`) | Duplicated doctests, functions and code blocks across the workspace; local code re-implementing an API a direct dependency already exports (dev, build, optional, all features, at the locked versions) | Copy-pasted function; re-implemented dependency fn; weakened config |
+| echoes | echoes (`cargo echoes`, `.echoes.toml`) | Duplicated doctests, functions and code blocks across the workspace; local code re-implementing an API a direct dependency already exports (dev, build, optional, all features, at the locked versions). Exact duplicates must be 0; approximate groups and reuse may not exceed the `ECHOES_MAX_*` ratchet in `mk.local` | Copy-pasted function; re-implemented dependency fn; weakened config |
 | semver | cargo-semver-checks vs. the last `v*` tag | Breaking API change without a major bump (skips: no lib, every crate pre-1.0 and so in development, or no earlier tag) | Public fn removed after `v1.0.0` |
 | wasm | `cargo check --target wasm32-unknown-unknown` | Code that does not build for wasm (skips unless `rust-toolchain.toml` or `Cargo.toml` declares wasm32) | `std::os::unix` import |
 | mutants-diff | cargo-mutants `--in-diff` vs. the base branch | New or changed code no test checks, caught on the PR instead of nightly | Untested fn added on the branch |

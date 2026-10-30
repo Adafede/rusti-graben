@@ -217,6 +217,11 @@ expect_fail wasm "unix" "code that does not build for wasm32"
 perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="1"/' mk.local
 expect_fail ratchet "went down" "coverage floor lowered"
 
+perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="100"\nECHOES_MAX_APPROXIMATE=0/' mk.local
+git commit -qam "baseline echoes ratchet"
+perl -pi -e 's/^ECHOES_MAX_APPROXIMATE=.*/ECHOES_MAX_APPROXIMATE=5/' mk.local
+MK_BASE=HEAD expect_fail ratchet "went up" "echoes ratchet raised"
+
 append_lib "// $typo"
 expect_fail ci "FAIL  typos" "ci tier propagates a failing gate"
 
