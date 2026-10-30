@@ -28,6 +28,10 @@ allow = [
 confidence-threshold = 0.93
 unused-allowed-license = "allow"
 
+[licenses.private]
+# Crates with `publish = false` are not licensed to anyone; check their dependencies only.
+ignore = true
+
 [bans]
 # Duplicates go in `skip` with a reason; the list may only shrink.
 multiple-versions = "deny"
