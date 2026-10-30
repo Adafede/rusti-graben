@@ -48,6 +48,8 @@ print_stderr = "warn"
 print_stdout = "warn"
 rc_buffer = "warn"
 rc_mutex = "warn"
+# Contradicts rustc's `unreachable_pub` (one asks for `pub`, the other `pub(crate)`).
+redundant_pub_crate = "allow"
 rest_pat_in_fully_bound_structs = "warn"
 same_name_method = "warn"
 std_instead_of_alloc = "warn"
