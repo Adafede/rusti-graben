@@ -25,6 +25,7 @@ it to update a repository). Everything specific to a repository lives in
 | `LOCAL_CARGO_TOOLS` | extra pinned tools (`cargo-make@0.37.24`), installed and version-checked |
 | `LOCAL_SETUP` | cargo-make tasks `./mk setup` runs in every tier, for installs a pin cannot express |
 | `LOCAL_SYSTEM_PACKAGES` | apt packages `./mk setup` installs on CI |
+| `MIRI_PACKAGES` | the crates `./mk miri` tests, when not the whole workspace (miri cannot spawn processes or open sockets) |
 | `COVERAGE_FAIL_UNDER_LINES` | the coverage floor (`./mk coverage-baseline`; the `ratchet` gate keeps it from dropping) |
 | `ECHOES_MAX_APPROXIMATE`, `ECHOES_MAX_REUSE` | legacy echoes counts (`./mk echoes-baseline`; the `ratchet` gate keeps them from rising) |
 

@@ -39,7 +39,7 @@ the gate fails for that reason (template CI, every PR).
 | mutants | cargo-mutants (`.cargo/mutants.toml`) | Code whose behavior no test checks; zero missed mutants |
 | coverage | cargo-llvm-cov `--fail-under-lines` | Line coverage below `COVERAGE_FAIL_UNDER_LINES` (ratchet, only goes up) |
 | powerset | cargo-hack `--feature-powerset` | Feature combinations that do not compile |
-| miri | miri on the pinned nightly | Undefined behavior, mostly in dependencies |
+| miri | miri on the pinned nightly, isolation disabled, `MIRI_PACKAGES` if set | Undefined behavior, mostly in dependencies |
 | outdated | cargo-outdated `--exit-code 1` | Direct dependencies behind their latest release |
 
 ## `./mk ci-experimental` (on demand, not enforced)

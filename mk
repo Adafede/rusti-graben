@@ -20,6 +20,7 @@ LOCAL_OVERRIDES=()      # standard gates this repository runs as its own cargo-m
 LOCAL_SETUP=()          # cargo-make tasks ./mk setup runs in every tier (installs mk cannot pin)
 LOCAL_CARGO_TOOLS=()    # extra crate@version tools, pinned like mk.versions
 LOCAL_SYSTEM_PACKAGES=() # apt packages ./mk setup installs on CI (Linux runners)
+MIRI_PACKAGES=()        # crates miri tests (default: the whole workspace)
 COVERAGE_FAIL_UNDER_LINES=100
 ECHOES_MAX_APPROXIMATE=0 # legacy approximate duplicate blocks (ratchet: only down)
 ECHOES_MAX_REUSE=0       # legacy dependency-reuse opportunities (ratchet: only down)
@@ -415,7 +416,17 @@ case "$cmd" in
         echo "COVERAGE_FAIL_UNDER_LINES: $COVERAGE_FAIL_UNDER_LINES -> $pct (the ratchet gate rejects a decrease against the base branch)"
         ;;
     powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
-    miri) cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked ;;
+    miri)
+        # Undefined behaviour, not sandboxing: tests may read the clock and the
+        # environment. MIRI_PACKAGES in mk.local limits it to the crates where
+        # it means something (miri cannot spawn processes or open sockets).
+        export MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}"
+        if [ "${#MIRI_PACKAGES[@]}" -gt 0 ]; then
+            cargo "+$RUST_NIGHTLY" miri test --all-features --locked "${MIRI_PACKAGES[@]/#/--package=}"
+        else
+            cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked
+        fi
+        ;;
     outdated) need cargo-outdated; cargo outdated --workspace --root-deps-only --exit-code 1 ;;
     ci) run_tier ci "${CI_GATES[@]}" "${LOCAL_CI_GATES[@]/#/local:}" ;;
     ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]/#/local:}" ;;

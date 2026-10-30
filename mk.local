@@ -11,6 +11,8 @@
 # LOCAL_CARGO_TOOLS=(crate@x.y.z) extra tools, installed and version-checked like mk.versions
 #                                 (`crate@x.y.z:binary` when the binary has another name)
 # LOCAL_SYSTEM_PACKAGES=(pkg ...) apt packages ./mk setup installs on CI (Linux runners)
+# MIRI_PACKAGES=(crate ...)       crates `./mk miri` tests, when not the whole workspace
+#                                 (miri cannot spawn processes or open sockets)
 #
 # Any ./mk task name the standard runner does not know runs that cargo-make task.
 
