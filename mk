@@ -283,7 +283,9 @@ case "$cmd" in
         done < <(git log --no-merges --format=%s "$(git merge-base "$base" HEAD)..HEAD")
         [ "$bad" = 0 ]
         ;;
-    fmt) cargo fmt --all -- --check ;;
+    # Workspace members only: --all would also check (and `cargo fmt --all` rewrite)
+    # path dependencies that live in other repositories.
+    fmt) cargo fmt -- --check ;;
     tombi)
         require tombi "$TOMBI_VERSION"
         tombi format --check
