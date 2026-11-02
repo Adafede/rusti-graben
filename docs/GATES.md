@@ -36,7 +36,16 @@ the gate fails for that reason (template CI, every PR).
 
 | Gate | Tool | Catches |
 |---|---|---|
-| mutants | cargo-mutants (`.cargo/mutants.toml`) | Code whose behavior no test checks; zero missed mutants |
+| mutants | cargo-mutants (`.cargo/mutants.toml`), `MUTANTS_PACKAGES` if set | Code whose behavior no test checks; zero missed mutants |
+
+Both mutants gates run through one bounded runner in `mk`, because an unbounded
+cargo-mutants run has wedged developer machines and cut a CI runner off from
+GitHub. It runs `MUTANTS_JOBS` mutants at once (1 locally, half the cores on CI),
+splits the cores between them and leaves half free locally, builds without
+debuginfo or incremental caches, at `nice 19`, and a watchdog refuses to start,
+or stops the run cleanly, when available memory falls below
+`MUTANTS_MIN_FREE_MEM_PCT` (15) or free disk below `MUTANTS_MIN_FREE_DISK_GB` (10).
+`./mk mutants -p crate` runs one crate.
 | coverage | cargo-llvm-cov `--fail-under-lines` | Line coverage below `COVERAGE_FAIL_UNDER_LINES` (ratchet, only goes up) |
 | powerset | cargo-hack `--feature-powerset` | Feature combinations that do not compile |
 | miri | miri on the pinned nightly, isolation disabled, `MIRI_PACKAGES` if set | Undefined behavior, mostly in dependencies |

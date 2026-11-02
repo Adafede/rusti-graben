@@ -233,6 +233,12 @@ expect_fail mutants-diff "MISSED" "untested function added on the branch"
 append_lib "$untested_fn"
 expect_fail mutants "MISSED" "untested function (surviving mutant)"
 
+# A floor on the machine, not the code: nothing to inject.
+MUTANTS_MIN_FREE_DISK_GB=1000000 expect_fail mutants "not starting cargo-mutants" "free disk below the mutants floor"
+
+printf 'LOCAL_OVERRIDES=(mutants)\n' >>mk.local
+expect_fail mutants "cannot replace mutants" "a repository task replacing the bounded mutants runner"
+
 append_lib "$untested_fn"
 expect_fail coverage "coverage" "line coverage below the floor"
 
