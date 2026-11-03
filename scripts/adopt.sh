@@ -24,7 +24,7 @@ MARKER="rusti-graben standard runner"
 # Copied when missing. The template's own selftest and sample crates are not.
 FILES=(
     rust-toolchain.toml rustfmt.toml clippy.toml deny.toml .cargo/mutants.toml
-    .echoes.toml .tombi.toml .typos.toml prek.toml AGENTS.md
+    .echoes.toml .refquiem.toml .tombi.toml .typos.toml prek.toml AGENTS.md
     .github/workflows/ci.yml .github/workflows/nightly.yml .github/workflows/release.yml
     .github/dependabot.yml renovate.json
 )
@@ -107,9 +107,18 @@ fi
 
 echo "==> Lints"
 lint_block="$(awk '/^\[workspace\.lints\./{p=1} p' "$TEMPLATE_DIR/Cargo.toml")"
+rustdoc_block="$(awk '/^\[workspace\.lints\.rustdoc\]/{p=1} p' "$TEMPLATE_DIR/Cargo.toml")"
 if grep -Eq '^\[(workspace\.)?lints\.' "$root"; then
-    echo "    keep the existing lint tables; compare with the template's:"
-    printf '%s\n' "$lint_block" | sed 's/^/      /'
+    if ! grep -Eq '^\[(workspace\.)?lints\.rustdoc\]' "$root"; then
+        if [ "$layout" = workspace ]; then
+            act "add [workspace.lints.rustdoc] to Cargo.toml" sh -c 'printf "\n%s\n" "$1" >>Cargo.toml' _ "$rustdoc_block"
+        else
+            act "add [lints.rustdoc] to Cargo.toml" sh -c 'printf "\n%s\n" "$1" | sed "s/^\[workspace\.lints\./[lints./" >>Cargo.toml' _ "$rustdoc_block"
+        fi
+    else
+        echo "    keep the existing lint tables; compare with the template's:"
+        printf '%s\n' "$lint_block" | sed 's/^/      /'
+    fi
 elif [ "$layout" = workspace ]; then
     act "add [workspace.lints.*] to Cargo.toml" sh -c 'printf "\n%s\n" "$1" >>Cargo.toml' _ "$lint_block"
 else

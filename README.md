@@ -31,10 +31,9 @@ Re-run it any time to bring the repository's standard runner (`mk`, `mk.versions
 
 | Tier | When | Gates |
 |---|---|---|
-| `./mk ci` | Every PR and push, and the pre-push hook | Formatting, lints, tests, docs, licenses and advisories, MSRV, duplicated code (incl. against dependencies), semver, mutation testing of the changed code, workflow and shell checks |
+| `./mk ci` | Every PR and push, and the pre-push hook | Formatting, lints, tests, docs, licenses and advisories, MSRV, duplicated code (incl. against dependencies), stale or unreviewed changed references (refquiem), semver, mutation testing of the changed code, workflow and shell checks |
 | `./mk ci-nightly` | Daily | Full mutation testing, coverage floor, feature powerset, miri, outdated dependencies |
 | `./mk ci-release` | `v*` tags | `./mk ci` and a publish dry run |
-| `./mk ci-experimental` | On demand | Gates kept ready but not enforced (refquiem) |
 
 [`docs/GATES.md`](./docs/GATES.md) lists each gate, what it catches and the violation the selftest injects. `./mk --list` shows every task.
 

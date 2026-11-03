@@ -32,7 +32,7 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 ```
 
 ## Gates (./mk ci)
-tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, semver (skips with no lib, pre-1.0 crates, or no earlier `v*` tag), wasm (only when wasm32 is declared), mutants-diff (mutation testing of the branch's changes). refquiem is experimental: `./mk ci-experimental`, not enforced. All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/GATES.md`.
+tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, refquiem, semver (skips with no lib, pre-1.0 crates, or no earlier `v*` tag), wasm (only when wasm32 is declared), mutants-diff (mutation testing of the branch's changes). All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/GATES.md`.
 
 ## Commands
 - `./mk --list` - List all tasks
@@ -46,11 +46,13 @@ tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit,
 - `./mk typos` - Spell check
 - `./mk tombi` - TOML formatting check
 - `./mk machete` - Unused deps
+- `./mk echoes` - Duplicated doctests, functions, blocks and dependency reuse
+- `./mk refquiem` - Mentions of deleted or signature-changed items
 - `./mk ci` - All blocking gates
 - `./mk ci-nightly` - Nightly checks (mutants, coverage, powerset, miri, outdated)
 - `./mk ci-release` - Release checks
-- `./mk ci-experimental` - Experimental gates (refquiem), not enforced
 - `./mk coverage-baseline` - Set the coverage floor to today's coverage
+- `./mk echoes-baseline` - Record legacy echoes counts in `mk.local`
 - `./mk selftest` - Inject one violation per gate and assert each gate fails
 
 ## Adoption

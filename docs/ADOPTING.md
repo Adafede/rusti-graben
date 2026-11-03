@@ -59,8 +59,9 @@ Every gate stays on. What cannot be fixed yet is recorded where reviewers see it
 | Lint | `#[expect(lint, reason = "...")]` at the site (fails once no longer needed) |
 | Duplicate dependency versions | `deny.toml` `[bans] skip`, with a reason |
 | Intentional duplicate code | `// echoes: allow` above the copy, with a reason |
+| Intentional historical reference | `// refquiem: allow(name)` or `<!-- refquiem: allow(name) -->` above the mention, or `allow`/`exclude` in `.refquiem.toml` (unused markers fail the gate) |
 | Legacy approximate duplicates / dependency reuse | `./mk echoes-baseline` records the counts in `mk.local`; the gate fails if they grow, `ratchet` if they are raised (exact duplicates are always fixed) |
-| Lints the code does not pass yet | a `# Ratchet` block of `allow` lines with counts in the lint table; fix one, delete its line |
+| Lints the code does not pass yet | a `# Ratchet` block of `allow` lines with counts in the lint table; fix one, delete its line (`./mk ratchet` rejects adding new `allow` lines) |
 | Mutant no test can kill | `.cargo/mutants.toml` exclusion, with a comment |
 | Coverage below 100% | `./mk coverage-baseline`; the `ratchet` gate then refuses any decrease |
 

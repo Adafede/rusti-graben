@@ -197,7 +197,16 @@ git commit -qam "add subtract"
 git checkout -q base -- "$LIB"
 git commit -qam "drop subtract"
 echo 'Call `subtract` to take away.' >>README.md
-expect_fail refquiem "sample_lib::subtract" "mention of a deleted item (experimental gate)"
+expect_fail refquiem "sample_lib::subtract" "mention of a deleted item"
+
+echo 'Call `sample_lib::add` to sum.' >>README.md
+git add README.md
+git commit -qm "docs: mention sample_lib::add"
+perl -pi -e 's/pub const fn add\(left: usize, right: usize\) -> usize/pub const fn add(left: usize, right: usize, extra: usize) -> usize/' "$LIB"
+MK_BASE=HEAD expect_fail refquiem "signature changed" "untouched mention of an item whose signature changed"
+
+perl -pi -e 's/^level = "deny"/level = "warn"/' .refquiem.toml
+expect_fail refquiem 'level = "deny"' "weakened .refquiem.toml"
 
 # Semver applies from 1.0.0 on; pre-1.0 crates are in development.
 perl -pi -e 's/^version = "0\.1\.0"/version = "1.0.0"/' Cargo.toml
@@ -216,6 +225,9 @@ expect_fail wasm "unix" "code that does not build for wasm32"
 
 perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="1"/' mk.local
 expect_fail ratchet "went down" "coverage floor lowered"
+
+perl -pi -e 's/^redundant_pub_crate = "allow"/redundant_pub_crate = "allow"\nmissing_docs = "allow"/' Cargo.toml
+expect_fail ratchet "lint allow count went up" "new lint allow added to Cargo.toml"
 
 perl -pi -e 's/^COVERAGE_FAIL_UNDER_LINES=.*/COVERAGE_FAIL_UNDER_LINES="100"\nECHOES_MAX_APPROXIMATE=0/' mk.local
 git commit -qam "baseline echoes ratchet"
@@ -265,7 +277,7 @@ before="$(fingerprint "$legacy")"
 check "dry run succeeds" adopt 1 "$legacy"
 check "dry run writes nothing" test "$before" = "$(fingerprint "$legacy")"
 check "apply succeeds" adopt 0 "$legacy"
-for f in mk mk.versions mk.local deny.toml .echoes.toml .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
+for f in mk mk.versions mk.local deny.toml .echoes.toml .refquiem.toml .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
     check "copies $f" test -f "$legacy/$f"
 done
 check "mk is executable" test -x "$legacy/mk"

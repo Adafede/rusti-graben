@@ -12,13 +12,13 @@ the gate fails for that reason (template CI, every PR).
 | tools | `mk.versions` | Local/CI tool drift | Pinned version changed |
 | actions | zizmor (offline), `.github/` | Unpinned actions, credential leaks, injection in workflows and the shared setup action | Action pinned to a tag |
 | shell | shellcheck | Quoting, word-splitting and portability bugs in `mk` and every tracked script | Unquoted `$1` |
-| commits | `./mk` (Conventional Commits regex) | Commit subjects on the branch that break the convention (changelogs, release tooling) | `Update the library` |
-| ratchet | `./mk` vs. the base branch | A lowered `COVERAGE_FAIL_UNDER_LINES`, a raised `ECHOES_MAX_*` | Floor lowered to 1; echoes maximum raised |
+| commits | `./mk` (Conventional Commits regex) | Commit subjects on the branch or in `commit-msg` that break the convention (changelogs, release tooling) | `Update the library` |
+| ratchet | `./mk` vs. the base branch | A lowered `COVERAGE_FAIL_UNDER_LINES`, a raised `ECHOES_MAX_*`, an added `= "allow"` lint line in `Cargo.toml` | Floor lowered to 1; echoes maximum raised; new lint allow in `Cargo.toml` |
 | fmt | rustfmt | Unformatted Rust | Unformatted function |
 | tombi | tombi format + lint | Unformatted or schema-invalid TOML, unreadable tombi config | Unformatted table |
 | typos | typos | Misspellings in code and docs | Misspelled comment |
 | lint | clippy `-D warnings` + workspace lints | unwrap, panic, todo, dbg, unsafe, bare `#[allow]` (use `#[expect(.., reason)]`), pedantic/nursery, and a curated restriction set (printing in libraries, indexing, `std` where `core` works, assert without message, ...) | `unwrap()`, `unsafe {}`, `#[allow]`, `println!` in a lib |
-| lints-inherit | `./mk` | Workspace crates that do not opt into `[lints] workspace = true`; a single crate without `[lints.*]` | `[lints]` removed |
+| lints-inherit | `./mk` | Missing `[lints.{clippy,rust,rustdoc}]` tables, or workspace crates that do not opt into `[lints] workspace = true` | `[lints]` removed |
 | test | cargo test | Regressions, doctests, crate READMEs (included as crate docs) | Failing assertion, failing README example |
 | doc | rustdoc `-D warnings`, private items, rustdoc lints | Broken or private intra-doc links, unbalanced backticks, bare URLs, invalid code blocks | Unresolved link, stray backtick |
 | deny | cargo-deny | Licenses outside the allow-list, advisories, duplicate versions, wildcards, unknown sources | GPL crate |
@@ -26,6 +26,7 @@ the gate fails for that reason (template CI, every PR).
 | machete | cargo-machete | Unused dependencies | Unused `itoa` |
 | msrv | `cargo +<rust-version> check` | Code that does not build on the declared MSRV | `is_multiple_of` (1.87) |
 | echoes | echoes (`cargo echoes`, `.echoes.toml`) | Duplicated doctests, functions and code blocks across the workspace; local code re-implementing an API a direct dependency already exports (dev, build, optional, all features, at the locked versions). Exact duplicates must be 0; approximate groups and reuse may not exceed the `ECHOES_MAX_*` ratchet in `mk.local` | Copy-pasted function; re-implemented dependency fn; weakened config |
+| refquiem | refquiem (`cargo refquiem`, `.refquiem.toml`) | Comments, doc comments, Markdown and string literals mentioning Rust items, dependencies, features, binaries, examples or serde names deleted in git history; on a branch, untouched text naming an item whose signature, fields, variants or const/static value changed; unused `refquiem: allow(...)` markers | Mention of a deleted fn; untouched mention of a fn whose signature changed; weakened config |
 | semver | cargo-semver-checks vs. the last `v*` tag | Breaking API change without a major bump (skips: no lib, every crate pre-1.0 and so in development, or no earlier tag) | Public fn removed after `v1.0.0` |
 | wasm | `cargo check --target wasm32-unknown-unknown` | Code that does not build for wasm (skips unless `rust-toolchain.toml` or `Cargo.toml` declares wasm32) | `std::os::unix` import |
 | mutants-diff | cargo-mutants `--in-diff` vs. the base branch | New or changed code no test checks, caught on the PR instead of nightly | Untested fn added on the branch |
@@ -50,15 +51,6 @@ or stops the run cleanly, when available memory falls below
 | powerset | cargo-hack `--feature-powerset` | Feature combinations that do not compile |
 | miri | miri on the pinned nightly, isolation disabled, `MIRI_PACKAGES` if set | Undefined behavior, mostly in dependencies |
 | outdated | cargo-outdated `--exit-code 1` | Direct dependencies behind their latest release |
-
-## `./mk ci-experimental` (on demand, not enforced)
-
-| Gate | Tool | Catches |
-|---|---|---|
-| refquiem | refquiem (`cargo refquiem`) | Docs and comments mentioning items deleted in git history |
-
-Kept installed and covered by the selftest so it can be promoted to `./mk ci`
-(move it from `EXPERIMENTAL_GATES` to `CI_GATES` in `mk`) once it matures.
 
 ## `./mk ci-release` (on `v*` tags)
 
