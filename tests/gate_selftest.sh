@@ -150,6 +150,7 @@ printf '\n[dependencies]\nitoa = "1"\n' >>"$LIB_TOML"
 expect_fail machete "itoa" "unused dependency"
 
 # Lower rust-version below 1.87 so u32::is_multiple_of is newer than MSRV.
+rustup run 1.85 true 2>/dev/null || rustup toolchain install 1.85 --profile minimal --no-self-update >&2
 perl -pi -e 's/^rust-version = .*/rust-version = "1.85"/' Cargo.toml
 append_lib '/// Whether `n` is even.
 #[must_use]
