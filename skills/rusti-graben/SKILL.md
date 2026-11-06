@@ -37,7 +37,11 @@ tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit,
 ## Commands
 - `./mk --list` - List all tasks
 - `./mk setup [ci|nightly|all]` - Install toolchains and pinned tools (needs cargo-binstall)
-- `./mk fmt` - Check formatting (rustfmt + typos + tombi)
+- `./mk check` - Fast inner loop: fmt + tombi + typos + lint
+- `./mk fix` - Auto-fix formatting, TOML, typos, and clippy
+- `./mk test-fast` - Run unit and integration tests without doctests (nextest / cargo test)
+- `./mk watch` - Continuous feedback via bacon / cargo-watch
+- `./mk fmt` - Check Rust formatting (rustfmt)
 - `./mk lint` - Clippy with `-D warnings`
 - `./mk test` - Run tests
 - `./mk doc` - Build docs with `-D warnings`

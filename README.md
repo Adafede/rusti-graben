@@ -6,16 +6,19 @@
 > A strict, zero-drift quality-hygiene template and migration framework for Rust repositories.
 
 - **One entrypoint.** `./mk <task>` runs every gate; CI calls the same tasks, so local and CI cannot disagree.
+- **Fast inner loop for humans and AI agents.** `./mk check`, `./mk fix`, `./mk test-fast`, and `./mk watch` give sub-10-second feedback before running `./mk ci`.
 - **Every gate blocks.** A gate skips only when it cannot apply, and says why. A missing tool, or one at another version than [`mk.versions`](./mk.versions), fails.
 - **Every gate is proven.** `./mk selftest` injects one violation per gate and checks that the gate fails because of it.
 
-## Use it
+## Quickstart
 
 **New repository:** "Use this template" on GitHub, replace the sample crates in `crates/`, then:
 
 ```bash
-./mk setup   # pinned toolchains and tools (needs cargo-binstall)
-./mk ci
+./mk setup       # pinned toolchains and tools (needs cargo-binstall)
+./mk check       # fast inner loop: fmt + tombi + typos + clippy
+./mk test-fast   # unit + integration tests (no doctests)
+./mk ci          # full blocking gate suite
 ```
 
 **Existing repository** (workspace or single crate):
@@ -25,21 +28,68 @@ scripts/adopt.sh path/to/repo             # dry run
 DRY_RUN=0 scripts/adopt.sh path/to/repo   # apply
 ```
 
-Re-run it any time to bring the repository's standard runner (`mk`, `mk.versions`, the CI setup action) up to date. Repository-specific gates, tools and overrides live in `mk.local`, which it never touches; cargo-make tasks keep working through `./mk <task>`. See [`docs/ADOPTING.md`](./docs/ADOPTING.md), including how to record legacy findings without weakening a gate.
+Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.versions`, `.github/actions/setup/action.yml`). Repository-specific gates, tools, and overrides live in `mk.local`, which `adopt.sh` never overwrites.
 
-## Tiers
+## Gate Table (Blocking vs. Nightly vs. Inner Loop)
 
-| Tier | When | Gates |
-|---|---|---|
-| `./mk ci` | Every PR and push, and the pre-push hook | Formatting, lints, tests, docs, licenses and advisories, MSRV, duplicated code (incl. against dependencies), stale or unreviewed changed references (refquiem), semver, mutation testing of the changed code, workflow and shell checks |
-| `./mk ci-nightly` | Daily | Full mutation testing, coverage floor, feature powerset, miri, outdated dependencies |
-| `./mk ci-release` | `v*` tags | `./mk ci` and a publish dry run |
+| Task | Tier | Tool | Policy |
+|---|---|---|---|
+| `./mk check` | Inner loop | rustfmt, tombi, typos, clippy | Fast pre-test verification (<10s) |
+| `./mk fix` | Inner loop | rustfmt, tombi, typos, clippy `--fix` | Deterministic auto-remediation |
+| `./mk test-fast` | Inner loop | cargo-nextest / cargo test | Unit + integration tests (no doctests) |
+| `./mk watch` | Inner loop | bacon / cargo-watch | Continuous background feedback |
+| `tools` | Blocking (`./mk ci`) | `mk.versions` | Exact pinned tool version verification |
+| `actions` | Blocking (`./mk ci`) | zizmor | SHA-pinned Actions & workflow security audit |
+| `shell` | Blocking (`./mk ci`) | shellcheck | Shell script lint (`--severity=style`) |
+| `commits` | Blocking (`./mk ci`) | `./mk` regex | Conventional Commits on branch / `commit-msg` |
+| `ratchet` | Blocking (`./mk ci`) | `./mk` vs. base branch | Rejects lowered coverage floor, raised echoes max, or new `Cargo.toml` lint allows |
+| `fmt` | Blocking (`./mk ci`) | rustfmt | Rust formatting check |
+| `tombi` | Blocking (`./mk ci`) | tombi | TOML formatting + schema lint |
+| `typos` | Blocking (`./mk ci`) | typos-cli | Source & documentation spell check |
+| `lint` | Blocking (`./mk ci`) | clippy `-D warnings` | Workspace pedantic/nursery/restriction + rustc lints |
+| `lints-inherit` | Blocking (`./mk ci`) | `./mk` | Every crate inherits `[workspace.lints]` |
+| `test` | Blocking (`./mk ci`) | cargo test | Unit, integration, doctests, and README examples |
+| `doc` | Blocking (`./mk ci`) | rustdoc `-D warnings` | Intra-doc links, private items, rustdoc lints |
+| `deny` | Blocking (`./mk ci`) | cargo-deny | Licenses, advisories, duplicate crate versions, sources |
+| `audit` | Blocking (`./mk ci`) | cargo-audit | RustSec vulnerability & unmaintained crate check |
+| `machete` | Blocking (`./mk ci`) | cargo-machete | Unused dependency detection |
+| `msrv` | Blocking (`./mk ci`) | `cargo +<msrv> check` | Verified build on declared `rust-version` |
+| `echoes` | Blocking (`./mk ci`) | cargo-echoes | 0 exact duplicates; approximate & dependency reuse ratcheted |
+| `refquiem` | Blocking (`./mk ci`) | cargo-refquiem | No stale mentions of deleted or signature-changed items |
+| `semver` | Blocking (`./mk ci`) | cargo-semver-checks | No breaking API changes since last `v*` tag (1.0+ libs) |
+| `wasm` | Blocking (`./mk ci`) | `cargo check --target wasm32-unknown-unknown` | Verified when `wasm32` target is declared |
+| `mutants-diff` | Blocking (`./mk ci`) | cargo-mutants `--in-diff` | 0 surviving mutants in Rust code changed on the branch |
+| `mutants` | Nightly (`./mk ci-nightly`) | cargo-mutants | Bounded full-workspace mutation testing |
+| `coverage` (`cov`) | Nightly (`./mk ci-nightly`) | cargo-llvm-cov | Line coverage ≥ `COVERAGE_FAIL_UNDER_LINES` |
+| `powerset` (`hack`) | Nightly (`./mk ci-nightly`) | cargo-hack | `--feature-powerset --no-dev-deps check` |
+| `miri` | Nightly (`./mk ci-nightly`) | cargo miri | Undefined behavior detection in tests |
+| `outdated` | Nightly (`./mk ci-nightly`) | cargo-outdated | Root dependency freshness |
 
-[`docs/GATES.md`](./docs/GATES.md) lists each gate, what it catches and the violation the selftest injects. `./mk --list` shows every task.
+See [`docs/GATES.md`](./docs/GATES.md) for the full specification of each gate and the violation `./mk selftest` injects.
 
-## LLM skill
+## Ratcheting a Legacy Repository
 
-[`skills/rusti-graben/SKILL.md`](./skills/rusti-graben/SKILL.md) (also at [`SKILL.md`](./SKILL.md)) teaches an agent to work through `./mk`.
+When adopting `rusti-graben` in an existing codebase, **never weaken a gate globally**. Instead, record legacy debt explicitly and let `./mk ratchet` ensure counts only move toward zero:
+
+1. **Adopt & baseline**:
+   ```bash
+   DRY_RUN=0 path/to/rusti-graben/scripts/adopt.sh .
+   ./mk setup
+   ./mk coverage-baseline   # sets COVERAGE_FAIL_UNDER_LINES in mk.local
+   ./mk echoes-baseline     # sets ECHOES_MAX_APPROXIMATE and ECHOES_MAX_REUSE in mk.local
+   ```
+   Optional per-gate adoption flags (`ADOPT_MUTANTS=0`, `ADOPT_ECHOES=0`, `ADOPT_REFQUIEM=0`, `ADOPT_WORKFLOWS=0`) allow staging config files progressively.
+2. **Scope legacy lints**: Use `#[expect(lint, reason = "...")]` at specific sites, or record legacy workspace-wide `# Ratchet` allow lines in `Cargo.toml` (`./mk ratchet` prevents adding new `"allow"` lines and encourages retiring existing ones).
+3. **Track all exceptions in [`docs/DEBT.md`](./docs/DEBT.md)**: Document every `deny.toml` duplicate skip, `.cargo/mutants.toml` exclusion, `// echoes: allow`, and `// refquiem: allow(name)` with its reason and removal condition. See [`docs/ADOPTING.md`](./docs/ADOPTING.md).
+
+## Documentation & Community
+
+- [`AGENTS.md`](./AGENTS.md) & [`CLAUDE.md`](./CLAUDE.md) — AI agent orientation and workflow guide
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — Runner and template architecture
+- [`docs/ADOPTING.md`](./docs/ADOPTING.md) — Adoption and legacy ratchet guide
+- [`docs/GATES.md`](./docs/GATES.md) — Gate reference and selftest matrix
+- [`docs/DEBT.md`](./docs/DEBT.md) — Technical debt and exception ledger
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`SECURITY.md`](./SECURITY.md), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
 
 ## License
 

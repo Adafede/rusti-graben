@@ -6,7 +6,8 @@
 # Cargo.lock
 
 # IDEs and OS metadata
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

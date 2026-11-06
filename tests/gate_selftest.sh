@@ -277,7 +277,7 @@ before="$(fingerprint "$legacy")"
 check "dry run succeeds" adopt 1 "$legacy"
 check "dry run writes nothing" test "$before" = "$(fingerprint "$legacy")"
 check "apply succeeds" adopt 0 "$legacy"
-for f in mk mk.versions mk.local deny.toml .echoes.toml .refquiem.toml .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
+for f in mk mk.versions mk.local deny.toml .echoes.toml .refquiem.toml .config/nextest.toml bacon.toml .editorconfig .vscode/settings.json CLAUDE.md docs/DEBT.md .github/PULL_REQUEST_TEMPLATE.md .github/workflows/ci.yml .github/actions/setup/action.yml .github/dependabot.yml; do
     check "copies $f" test -f "$legacy/$f"
 done
 check "mk is executable" test -x "$legacy/mk"
@@ -319,6 +319,15 @@ check "single crate: apply succeeds" adopt 0 "$single"
 check "single crate: adds [lints.*] tables" grep -q '^\[lints\.clippy\]' "$single/Cargo.toml"
 check "single crate: lints gate passes" bash -c 'cd "$1" && git init -q && ./mk lints-inherit' _ "$single"
 check "single crate: deny allows its own license" grep -q '"MPL-2.0", # this project' "$single/deny.toml"
+
+wasm_repo="$OUTSIDE/wasm-crate"
+mkdir -p "$wasm_repo/src"
+printf '[package]\nname = "wasm-x"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$wasm_repo/Cargo.toml"
+printf '[toolchain]\nchannel = "1.99.1"\ntargets = ["wasm32-unknown-unknown"]\n' >"$wasm_repo/rust-toolchain.toml"
+echo '//! Wasm.' >"$wasm_repo/src/lib.rs"
+check "wasm crate: apply with ADOPT_MUTANTS=0 succeeds" bash -c 'DRY_RUN=0 ADOPT_MUTANTS=0 "$2/scripts/adopt.sh" "$1"' _ "$wasm_repo" "$SRC"
+check "wasm crate: respects ADOPT_MUTANTS=0" test ! -e "$wasm_repo/.cargo/mutants.toml"
+check "wasm crate: keeps existing rust-toolchain.toml with wasm32" grep -q 'wasm32-unknown-unknown' "$wasm_repo/rust-toolchain.toml"
 
 [ "$failed" = 0 ] || { echo "selftest: some gates cannot fail as they should" >&2; exit 1; }
 echo "==> every gate failed on its injected violation"

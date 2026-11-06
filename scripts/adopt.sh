@@ -17,17 +17,25 @@ set -euo pipefail
 TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET_DIR="$(cd "${1:-.}" && pwd)"
 DRY_RUN="${DRY_RUN:-1}"
+ADOPT_MUTANTS="${ADOPT_MUTANTS:-1}"
+ADOPT_ECHOES="${ADOPT_ECHOES:-1}"
+ADOPT_REFQUIEM="${ADOPT_REFQUIEM:-1}"
+ADOPT_WORKFLOWS="${ADOPT_WORKFLOWS:-1}"
 
 # Standard: always synced to the template (they hold no repository settings).
 STANDARD=(mk mk.versions .github/actions/setup/action.yml)
 MARKER="rusti-graben standard runner"
 # Copied when missing. The template's own selftest and sample crates are not.
 FILES=(
-    rust-toolchain.toml rustfmt.toml clippy.toml deny.toml .cargo/mutants.toml
-    .echoes.toml .refquiem.toml .tombi.toml .typos.toml prek.toml AGENTS.md
-    .github/workflows/ci.yml .github/workflows/nightly.yml .github/workflows/release.yml
-    .github/dependabot.yml renovate.json
+    rust-toolchain.toml rustfmt.toml clippy.toml deny.toml
+    .config/nextest.toml bacon.toml .editorconfig .vscode/settings.json
+    .tombi.toml .typos.toml prek.toml AGENTS.md CLAUDE.md docs/DEBT.md
+    .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml renovate.json
 )
+[ "$ADOPT_MUTANTS" = 1 ] && FILES+=(.cargo/mutants.toml)
+[ "$ADOPT_ECHOES" = 1 ] && FILES+=(.echoes.toml)
+[ "$ADOPT_REFQUIEM" = 1 ] && FILES+=(.refquiem.toml)
+[ "$ADOPT_WORKFLOWS" = 1 ] && FILES+=(.github/workflows/ci.yml .github/workflows/nightly.yml .github/workflows/release.yml)
 GITIGNORE_LINES=(lcov.info 'mutants.out*/')
 CARGO_MAKE_VERSION="0.37.24"
 
