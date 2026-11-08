@@ -240,6 +240,12 @@ MK_BASE=HEAD expect_fail ratchet "went up" "echoes ratchet raised"
 append_lib "// $typo"
 expect_fail ci "FAIL  typos" "ci tier propagates a failing gate"
 
+printf '\n%s\n' "$typo" >>docs/GATES.md
+expect_fail ci-fast "docs/config-only diff against base" "ci-fast skips Rust compilation gates on docs-only diff and catches docs typo"
+
+printf '\n[workspace.metadata.x]\nkey=1\n' >>Cargo.toml
+expect_fail toml "not formatted" "toml alias invokes tombi"
+
 append_lib "$untested_fn"
 expect_fail mutants-diff "MISSED" "untested function added on the branch"
 

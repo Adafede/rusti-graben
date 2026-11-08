@@ -35,6 +35,7 @@ A strict, zero-drift quality-hygiene template for Rust repositories.
 tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit, test, doc, deny, audit, machete, msrv, echoes, refquiem, semver (skips with no lib, pre-1.0 crates, or no earlier `v*` tag), wasm (only when wasm32 is declared), mutants-diff (mutation testing of the branch's changes). All are blocking; a missing tool, or one not at its pinned version, fails. See `docs/GATES.md`.
 
 ## Commands
+- `./mk help` - Explain the 3-tier workflow and task aliases
 - `./mk --list` - List all tasks
 - `./mk setup [ci|nightly|all]` - Install toolchains and pinned tools (needs cargo-binstall)
 - `./mk check` - Fast inner loop: fmt + tombi + typos + lint
@@ -48,10 +49,11 @@ tools, actions, shell, commits, ratchet, fmt, tombi, typos, lint, lints-inherit,
 - `./mk deny` - cargo-deny
 - `./mk audit` - cargo-audit
 - `./mk typos` - Spell check
-- `./mk tombi` - TOML formatting check
-- `./mk machete` - Unused deps
-- `./mk echoes` - Duplicated doctests, functions, blocks and dependency reuse
-- `./mk refquiem` - Mentions of deleted or signature-changed items
+- `./mk tombi` (`./mk toml`) - TOML formatting check
+- `./mk machete` (`./mk unused-deps`) - Unused deps
+- `./mk echoes` (`./mk duplication` / `./mk dup`) - Duplicated doctests, functions, blocks and dependency reuse
+- `./mk refquiem` (`./mk stale-refs`) - Mentions of deleted or signature-changed items
+- `./mk ci-fast` - Local pre-push gates (skips mutants-diff & network audit; change-aware)
 - `./mk ci` - All blocking gates
 - `./mk ci-nightly` - Nightly checks (mutants, coverage, powerset, miri, outdated)
 - `./mk ci-release` - Release checks

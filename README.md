@@ -18,7 +18,8 @@
 ./mk setup       # pinned toolchains and tools (needs cargo-binstall)
 ./mk check       # fast inner loop: fmt + tombi + typos + clippy
 ./mk test-fast   # unit + integration tests (no doctests)
-./mk ci          # full blocking gate suite
+./mk ci-fast     # local pre-push gate (change-aware; skips mutants-diff & network audit)
+./mk ci          # full blocking PR gate suite
 ```
 
 **Existing repository** (workspace or single crate):
@@ -38,13 +39,14 @@ Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.ver
 | `./mk fix` | Inner loop | rustfmt, tombi, typos, clippy `--fix` | Deterministic auto-remediation |
 | `./mk test-fast` | Inner loop | cargo-nextest / cargo test | Unit + integration tests (no doctests) |
 | `./mk watch` | Inner loop | bacon / cargo-watch | Continuous background feedback |
+| `./mk ci-fast` | Pre-push (`prek`) | All blocking gates except `mutants-diff` & `audit` | Fast local pre-push verification (~20–45s; skips Rust compile gates on docs-only diffs) |
 | `tools` | Blocking (`./mk ci`) | `mk.versions` | Exact pinned tool version verification |
 | `actions` | Blocking (`./mk ci`) | zizmor | SHA-pinned Actions & workflow security audit |
 | `shell` | Blocking (`./mk ci`) | shellcheck | Shell script lint (`--severity=style`) |
 | `commits` | Blocking (`./mk ci`) | `./mk` regex | Conventional Commits on branch / `commit-msg` |
 | `ratchet` | Blocking (`./mk ci`) | `./mk` vs. base branch | Rejects lowered coverage floor, raised echoes max, or new `Cargo.toml` lint allows |
 | `fmt` | Blocking (`./mk ci`) | rustfmt | Rust formatting check |
-| `tombi` | Blocking (`./mk ci`) | tombi | TOML formatting + schema lint |
+| `tombi` (`toml`) | Blocking (`./mk ci`) | tombi | TOML formatting + schema lint |
 | `typos` | Blocking (`./mk ci`) | typos-cli | Source & documentation spell check |
 | `lint` | Blocking (`./mk ci`) | clippy `-D warnings` | Workspace pedantic/nursery/restriction + rustc lints |
 | `lints-inherit` | Blocking (`./mk ci`) | `./mk` | Every crate inherits `[workspace.lints]` |
@@ -52,16 +54,16 @@ Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.ver
 | `doc` | Blocking (`./mk ci`) | rustdoc `-D warnings` | Intra-doc links, private items, rustdoc lints |
 | `deny` | Blocking (`./mk ci`) | cargo-deny | Licenses, advisories, duplicate crate versions, sources |
 | `audit` | Blocking (`./mk ci`) | cargo-audit | RustSec vulnerability & unmaintained crate check |
-| `machete` | Blocking (`./mk ci`) | cargo-machete | Unused dependency detection |
+| `machete` (`unused-deps`) | Blocking (`./mk ci`) | cargo-machete | Unused dependency detection |
 | `msrv` | Blocking (`./mk ci`) | `cargo +<msrv> check` | Verified build on declared `rust-version` |
-| `echoes` | Blocking (`./mk ci`) | cargo-echoes | 0 exact duplicates; approximate & dependency reuse ratcheted |
-| `refquiem` | Blocking (`./mk ci`) | cargo-refquiem | No stale mentions of deleted or signature-changed items |
+| `echoes` (`duplication`, `dup`) | Blocking (`./mk ci`) | cargo-echoes | 0 exact duplicates; approximate & dependency reuse ratcheted |
+| `refquiem` (`stale-refs`) | Blocking (`./mk ci`) | cargo-refquiem | No stale mentions of deleted or signature-changed items |
 | `semver` | Blocking (`./mk ci`) | cargo-semver-checks | No breaking API changes since last `v*` tag (1.0+ libs) |
 | `wasm` | Blocking (`./mk ci`) | `cargo check --target wasm32-unknown-unknown` | Verified when `wasm32` target is declared |
 | `mutants-diff` | Blocking (`./mk ci`) | cargo-mutants `--in-diff` | 0 surviving mutants in Rust code changed on the branch |
 | `mutants` | Nightly (`./mk ci-nightly`) | cargo-mutants | Bounded full-workspace mutation testing |
 | `coverage` (`cov`) | Nightly (`./mk ci-nightly`) | cargo-llvm-cov | Line coverage ≥ `COVERAGE_FAIL_UNDER_LINES` |
-| `powerset` (`hack`) | Nightly (`./mk ci-nightly`) | cargo-hack | `--feature-powerset --no-dev-deps check` |
+| `powerset` (`feature-powerset`, `hack`) | Nightly (`./mk ci-nightly`) | cargo-hack | `--feature-powerset --no-dev-deps check` |
 | `miri` | Nightly (`./mk ci-nightly`) | cargo miri | Undefined behavior detection in tests |
 | `outdated` | Nightly (`./mk ci-nightly`) | cargo-outdated | Root dependency freshness |
 

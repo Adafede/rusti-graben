@@ -17,6 +17,7 @@
 ## Commands
 
 ```bash
+./mk help                      # Show tiers, gate descriptions, and task aliases
 ./mk setup                     # Install pinned toolchains and tools (once)
 ./mk check                     # Fast inner loop (<10s): fmt, tombi, typos, clippy
 ./mk fix                       # Auto-fix formatting, TOML, typos, and clippy
@@ -25,6 +26,7 @@
 ./mk test                      # Full test suite including doctests and README examples
 ./mk watch                     # Continuous feedback via bacon / cargo-watch
 ./mk mutants-diff              # Mutation testing on branch diff against base
+./mk ci-fast                   # Local pre-push gate (skips mutants-diff & network audit; change-aware)
 ./mk ci                        # All blocking PR gates (must pass before finishing)
 ./mk ci-nightly                # Nightly gates: mutants, coverage (cov), powerset (hack), miri, outdated
 ./mk selftest                  # Template-only: prove every gate fails on an injected violation
