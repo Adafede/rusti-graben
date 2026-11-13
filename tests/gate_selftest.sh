@@ -332,7 +332,7 @@ check "single crate: deny allows its own license" grep -q '"MPL-2.0", # this pro
 wasm_repo="$OUTSIDE/wasm-crate"
 mkdir -p "$wasm_repo/src"
 printf '[package]\nname = "wasm-x"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$wasm_repo/Cargo.toml"
-printf '[toolchain]\nchannel = "1.99.1"\ntargets = ["wasm32-unknown-unknown"]\n' >"$wasm_repo/rust-toolchain.toml"
+printf '[toolchain]\nchannel = "1.100.0"\ntargets = ["wasm32-unknown-unknown"]\n' >"$wasm_repo/rust-toolchain.toml"
 echo '//! Wasm.' >"$wasm_repo/src/lib.rs"
 check "wasm crate: apply with ADOPT_MUTANTS=0 succeeds" bash -c 'DRY_RUN=0 ADOPT_MUTANTS=0 "$2/scripts/adopt.sh" "$1"' _ "$wasm_repo" "$SRC"
 check "wasm crate: respects ADOPT_MUTANTS=0" test ! -e "$wasm_repo/.cargo/mutants.toml"
