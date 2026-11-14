@@ -324,14 +324,15 @@ check() {
 }
 adopt() { DRY_RUN="$1" "$SRC/scripts/adopt.sh" "$2"; }
 # Everything adopt.sh may touch, to prove dry runs and re-runs change nothing.
-fingerprint() { (cd "$1" && find . -path ./target -prune -o -type f -print | LC_ALL=C sort | xargs cksum | cksum); }
+fingerprint() { (cd "$1" && find . -path ./target -prune -o -type f -print0 | LC_ALL=C sort -z | xargs -0 cksum | cksum); }
 
 legacy="$OUTSIDE/legacy-workspace"
 mkdir -p "$legacy/crates/core/src"
-printf '[workspace]\nmembers = ["crates/core"]\nresolver = "3"\n' >"$legacy/Cargo.toml"
+printf '[workspace]\nresolver = "3"\nmembers = [\n  "crates/core",\n]\n' >"$legacy/Cargo.toml"
 printf '[package]\nname = "core-x"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$legacy/crates/core/Cargo.toml"
 echo '//! Core.' >"$legacy/crates/core/src/lib.rs"
 printf '# legacy policy\n' >"$legacy/.typos.toml"
+printf '/target' >"$legacy/.gitignore"
 (cd "$legacy" && cargo generate-lockfile --offline --quiet)
 before="$(fingerprint "$legacy")"
 check "dry run succeeds" adopt 1 "$legacy"
@@ -346,6 +347,12 @@ check "keeps an existing config" grep -qx '# legacy policy' "$legacy/.typos.toml
 check "adds workspace lints" grep -q '^\[workspace\.lints\.clippy\]' "$legacy/Cargo.toml"
 check "members inherit them" bash -c 'cd "$1" && git init -q && ./mk lints-inherit' _ "$legacy"
 check "deny no longer allows the template's AGPL license" bash -c '! grep -q AGPL "$1/deny.toml"' _ "$legacy"
+check "deny does not duplicate MIT" bash -c '[ "$(grep -c "\"MIT\"" "$1/deny.toml")" -eq 1 ]' _ "$legacy"
+check "gitignore preserves existing line without trailing newline" grep -qx '/target' "$legacy/.gitignore"
+check "gitignore appends lcov.info on its own line" grep -qx 'lcov.info' "$legacy/.gitignore"
+check "seeded docs/DEBT.md strips template specifics" bash -c '! grep -Eq "sample-bin|@Adafede|COVERAGE_FAIL_UNDER_LINES" "$1/docs/DEBT.md"' _ "$legacy"
+check "seeded AGENTS.md strips template specifics" bash -c '! grep -Eq "sample-lib|sample-bin|gate_selftest\.sh|\.agents/PLAYBOOK\.md" "$1/AGENTS.md"' _ "$legacy"
+check "adopted workspace passes tombi" bash -c 'cd "$1" && ./mk tombi' _ "$legacy"
 before="$(fingerprint "$legacy")"
 check "second apply succeeds" adopt 0 "$legacy"
 check "second apply changes nothing" test "$before" = "$(fingerprint "$legacy")"
@@ -373,12 +380,13 @@ check "own runner: left untouched" grep -qx 'echo mine' "$custom/mk"
 
 single="$OUTSIDE/single-crate"
 mkdir -p "$single/src"
-printf '[package]\nname = "single"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MPL-2.0"\n' >"$single/Cargo.toml"
+printf '[package]\nname = "single"\nversion = "0.1.0"\nedition = "2024"\nlicense = "LGPL-3.0-only"\n' >"$single/Cargo.toml"
 echo '//! Single.' >"$single/src/lib.rs"
 check "single crate: apply succeeds" adopt 0 "$single"
 check "single crate: adds [lints.*] tables" grep -q '^\[lints\.clippy\]' "$single/Cargo.toml"
 check "single crate: lints gate passes" bash -c 'cd "$1" && git init -q && ./mk lints-inherit' _ "$single"
-check "single crate: deny allows its own license" grep -q '"MPL-2.0", # this project' "$single/deny.toml"
+check "single crate: deny allows its own license" grep -q '"LGPL-3.0-only",  # this project' "$single/deny.toml"
+check "single crate: passes tombi" bash -c 'cd "$1" && ./mk tombi' _ "$single"
 
 wasm_repo="$OUTSIDE/wasm-crate"
 mkdir -p "$wasm_repo/src"

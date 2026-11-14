@@ -25,11 +25,12 @@ ADOPT_WORKFLOWS="${ADOPT_WORKFLOWS:-1}"
 # Standard: always synced to the template (they hold no repository settings).
 STANDARD=(mk mk.versions .github/actions/setup/action.yml)
 MARKER="rusti-graben standard runner"
-# Copied when missing. The template's own selftest and sample crates are not.
+# Copied when missing. Template-only files (selftest, sample crates) are skipped;
+# AGENTS.md and docs/DEBT.md are seeded with template-specific lines stripped.
 FILES=(
     rust-toolchain.toml rustfmt.toml clippy.toml deny.toml
     .config/nextest.toml bacon.toml .editorconfig .vscode/settings.json
-    .tombi.toml .typos.toml prek.toml AGENTS.md CLAUDE.md docs/DEBT.md
+    .tombi.toml .typos.toml prek.toml CLAUDE.md
     .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml renovate.json
 )
 [ "$ADOPT_MUTANTS" = 1 ] && FILES+=(.cargo/mutants.toml)
@@ -57,6 +58,26 @@ act() { # act <description> <command...>: run it when applying, report it either
 
 # copy_file <src> <dest>: creates parent directories; keeps the executable bit.
 copy_file() { mkdir -p "$(dirname "$2")" && cp "$1" "$2"; }
+seed_agents() {
+    grep -Ev 'scripts/adopt\.sh|tests/gate_selftest\.sh|crates/sample-|selftest|Template-only|\.agents/PLAYBOOK\.md' \
+        "$TEMPLATE_DIR/AGENTS.md" >AGENTS.md
+}
+seed_debt() {
+    mkdir -p docs && sed -e '/@Adafede/d' -e '/sample-bin/d' -e '/^## Ratchet Floors/,$d' \
+        "$TEMPLATE_DIR/docs/DEBT.md" >docs/DEBT.md
+}
+drop_deny_placeholder() {
+    sed -i.bak '/own license (scripts\/adopt.sh replaces it)/d' deny.toml
+    rm -f deny.toml.bak
+}
+set_deny_placeholder() {
+    sed -i.bak "s|^  \"[^\"]*\", *# this project's own license (scripts/adopt.sh replaces it)|  \"$1\",  # this project's own license|" deny.toml
+    rm -f deny.toml.bak
+}
+append_gitignore() {
+    [ -s .gitignore ] && [ -n "$(tail -c1 .gitignore)" ] && printf '\n' >>.gitignore
+    printf '%s\n' "$1" >>.gitignore
+}
 
 cd "$TARGET_DIR"
 root=Cargo.toml
@@ -99,18 +120,24 @@ for f in "${FILES[@]}"; do
         act "add $f" copy_file "$TEMPLATE_DIR/$f" "$f"
     fi
 done
+[ -e AGENTS.md ] || act "add AGENTS.md" seed_agents
+[ -e docs/DEBT.md ] || act "add docs/DEBT.md" seed_debt
 
 echo "==> deny.toml: allow this project's own license, not the template's"
 own="$(sed -n 's/^license *= *"\([^"]*\)".*/\1/p' "$root" | head -1)"
+if [ -z "$own" ]; then
+    own="$(cargo metadata --no-deps --format-version 1 2>/dev/null | grep -o '"license":"[^"]*"' | cut -d'"' -f4 | sort -u | head -1 || true)"
+fi
+deny_src=deny.toml
+[ -e "$deny_src" ] || deny_src="$TEMPLATE_DIR/deny.toml"
 # Only for the template's deny.toml (just copied, or about to be in a dry run).
-if grep -q "own license (scripts/adopt.sh replaces it)" deny.toml 2>/dev/null || [ ! -e deny.toml ]; then
-    if [ -z "$own" ] || [[ "$own" == *" "* ]]; then
-        # No license, or an expression of licenses (`MIT OR Apache-2.0`) the allow-list already covers.
-        act "drop the template's own-license entry" sed -i.bak '/own license (scripts\/adopt.sh replaces it)/d' deny.toml
+if grep -q "own license (scripts/adopt.sh replaces it)" "$deny_src" 2>/dev/null; then
+    if [ -z "$own" ] || [[ "$own" == *" "* ]] || grep -v 'own license (scripts/adopt.sh replaces it)' "$deny_src" | grep -qF "\"$own\""; then
+        # No single license, an expression, or already in the allow-list: drop the template entry.
+        act "drop the template's own-license entry" drop_deny_placeholder
     else
-        act "allow $own (this project's license)" sed -i.bak "s|^  \"[^\"]*\", *# this project's own license (scripts/adopt.sh replaces it)|  \"$own\", # this project's own license|" deny.toml
+        act "allow $own (this project's license)" set_deny_placeholder "$own"
     fi
-    rm -f deny.toml.bak
 fi
 
 echo "==> Lints"
@@ -133,21 +160,22 @@ else
     act "add [lints.*] to Cargo.toml" sh -c 'printf "\n%s\n" "$1" | sed "s/^\[workspace\.lints\./[lints./" >>Cargo.toml' _ "$lint_block"
 fi
 if [ "$layout" = workspace ]; then
-    for manifest in $(cargo metadata --no-deps --format-version 1 | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4); do
+    while IFS= read -r manifest; do
+        [ -n "$manifest" ] || continue
         if ! awk '/^\[lints\]/{s=1;next} /^\[/{s=0} s && /^workspace *= *true/{f=1} END{exit !f}' "$manifest"; then
             act "make ${manifest#"$TARGET_DIR"/} inherit workspace lints" sh -c 'printf "\n[lints]\nworkspace = true\n" >>"$1"' _ "$manifest"
         fi
-    done
+    done < <(cargo metadata --no-deps --format-version 1 | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4)
 fi
 
 echo "==> .gitignore"
 for line in "${GITIGNORE_LINES[@]}"; do
-    grep -qxF "$line" .gitignore 2>/dev/null || act "ignore $line" sh -c 'printf "%s\n" "$1" >>.gitignore' _ "$line"
+    grep -qxF "$line" .gitignore 2>/dev/null || act "ignore $line" append_gitignore "$line"
 done
 
 echo "==> $changes change(s)$([ "$DRY_RUN" = 1 ] && echo ' planned; rerun with DRY_RUN=0 to apply')"
 if [ "$DRY_RUN" = 0 ]; then
-    grep -q '^rust-version' "$root" || echo "    TODO: set rust-version in Cargo.toml (the msrv gate requires it)"
+    grep -q '^rust-version' "$root" || cargo metadata --no-deps --format-version 1 2>/dev/null | grep -q '"rust_version":"' || echo "    TODO: set rust-version in Cargo.toml (the msrv gate requires it)"
     cat <<'EOF'
 ==> Next, in the adopted repository:
     ./mk setup                 # pinned toolchains and tools (needs cargo-binstall)
