@@ -19,11 +19,11 @@ it to update a repository). Everything specific to a repository lives in
 
 | Key | Use |
 |---|---|
-| `LOCAL_CI_GATES` | the repository's own checks, added to `./mk ci` (cargo-make tasks) |
+| `LOCAL_CI_GATES` | the repository's own checks, added to `./mk ci` (`task_<name>()` in `mk.local`, or a cargo-make task) |
 | `LOCAL_NIGHTLY_GATES` | the same for `./mk ci-nightly` |
 | `LOCAL_OVERRIDES` | a standard gate run as the repository's own task: `test`, or `wasm=check-wasm` |
 | `LOCAL_CARGO_TOOLS` | extra pinned tools (`cargo-make@0.37.24`), installed and version-checked |
-| `LOCAL_SETUP` | cargo-make tasks `./mk setup` runs in every tier, for installs a pin cannot express |
+| `LOCAL_SETUP` | custom setup tasks `./mk setup` runs in every tier, for installs a pin cannot express |
 | `LOCAL_SYSTEM_PACKAGES` | apt packages `./mk setup` installs on CI |
 | `MIRI_PACKAGES` | the crates `./mk miri` tests, when not the whole workspace (miri cannot spawn processes or open sockets) |
 | `MUTANTS_PACKAGES` | the crates `./mk mutants` and `./mk mutants-diff` mutate, when not the whole workspace |
@@ -40,7 +40,7 @@ replaces it with the standard one; any other custom `mk` makes it stop.
 `adopt.sh` works for workspaces and single crates and is idempotent:
 
 - syncs the standard files, and creates `mk.local` when missing;
-- copies the gate configs, `AGENTS.md`, the CI/nightly/release workflows and the
+- copies the gate configs, `docs/DEBT.md`, the CI/nightly/release workflows, and the
   Dependabot/Renovate configs, when missing;
 - keeps every file that already exists and prints its diff against the template;
 - allows the repository's own license in `deny.toml` (not the template's AGPL);

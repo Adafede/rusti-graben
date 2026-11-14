@@ -6,7 +6,7 @@
 > A strict, zero-drift quality-hygiene template and migration framework for Rust repositories.
 
 - **One entrypoint.** `./mk <task>` runs every gate; CI calls the same tasks, so local and CI cannot disagree.
-- **Fast inner loop for humans and AI agents.** `./mk check`, `./mk fix`, `./mk test-fast`, and `./mk watch` give sub-10-second feedback before running `./mk ci`.
+- **Fast inner loop.** `./mk check`, `./mk fix`, `./mk test-fast`, and `./mk watch` give quick local feedback before running `./mk ci`.
 - **Every gate blocks.** A gate skips only when it cannot apply, and says why. A missing tool, or one at another version than [`mk.versions`](./mk.versions), fails.
 - **Every gate is proven.** `./mk selftest` injects one violation per gate and checks that the gate fails because of it.
 
@@ -39,7 +39,7 @@ Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.ver
 | `./mk fix` | Inner loop | rustfmt, tombi, typos, clippy `--fix` | Deterministic auto-remediation |
 | `./mk test-fast` | Inner loop | cargo-nextest / cargo test | Unit + integration tests (no doctests) |
 | `./mk watch` | Inner loop | bacon / cargo-watch | Continuous background feedback |
-| `./mk ci-fast` | Pre-push (`prek`) | All blocking gates except `mutants-diff` & `audit` | Fast local pre-push verification (~20–45s; skips Rust compile gates on docs-only diffs) |
+| `./mk ci-fast` | Pre-push (`prek`) | All blocking gates except `mutants-diff` & `audit` | Fast local pre-push verification (skips Rust compilation gates when a diff touches only standalone docs or workflow/tool configs) |
 | `tools` | Blocking (`./mk ci`) | `mk.versions` | Exact pinned tool version verification |
 | `actions` | Blocking (`./mk ci`) | zizmor | SHA-pinned Actions & workflow security audit |
 | `shell` | Blocking (`./mk ci`) | shellcheck | Shell script lint (`--severity=style`) |
@@ -84,13 +84,21 @@ When adopting `rusti-graben` in an existing codebase, **never weaken a gate glob
 2. **Scope legacy lints**: Use `#[expect(lint, reason = "...")]` at specific sites, or record legacy workspace-wide `# Ratchet` allow lines in `Cargo.toml` (`./mk ratchet` prevents adding new `"allow"` lines and encourages retiring existing ones).
 3. **Track all exceptions in [`docs/DEBT.md`](./docs/DEBT.md)**: Document every `deny.toml` duplicate skip, `.cargo/mutants.toml` exclusion, `// echoes: allow`, and `// refquiem: allow(name)` with its reason and removal condition. See [`docs/ADOPTING.md`](./docs/ADOPTING.md).
 
+## Requirements & Known Limitations
+
+- `./mk setup` requires `rustup`, [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall), and network access to install pinned binaries and the nightly toolchain from [`mk.versions`](./mk.versions).
+- `audit` and `outdated` query the RustSec advisory database and `crates.io` index over the network (`./mk ci-fast` omits `audit` for offline pre-push runs).
+- `miri` cannot spawn subprocesses or open sockets; restrict crates via `MIRI_PACKAGES` in [`mk.local`](./mk.local) or mark process-spawning integration tests `#[cfg_attr(miri, ignore = "...")]`.
+- `mutants` and `mutants-diff` require at least `MUTANTS_MIN_FREE_DISK_GB` (default `10` GB) free disk and `MUTANTS_MIN_FREE_MEM_PCT` (default `15%`) free memory; `LOCAL_OVERRIDES` cannot replace `mutants` or `mutants-diff` so the resource watchdog stays active.
+- `semver` runs only on `1.0.0+` library crates after an earlier `v*` git tag exists; `wasm` runs only when `wasm32` is declared outside comments in `rust-toolchain.toml` or `Cargo.toml`.
+
 ## Documentation & Community
 
-- [`AGENTS.md`](./AGENTS.md) & [`CLAUDE.md`](./CLAUDE.md) — AI agent orientation and workflow guide
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — Runner and template architecture
 - [`docs/ADOPTING.md`](./docs/ADOPTING.md) — Adoption and legacy ratchet guide
 - [`docs/GATES.md`](./docs/GATES.md) — Gate reference and selftest matrix
 - [`docs/DEBT.md`](./docs/DEBT.md) — Technical debt and exception ledger
+- [`docs/adr/0001-inner-loop-and-ratchets.md`](./docs/adr/0001-inner-loop-and-ratchets.md) — Architecture decision record for inner-loop tasks and ratchets
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`SECURITY.md`](./SECURITY.md), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
 
 ## License

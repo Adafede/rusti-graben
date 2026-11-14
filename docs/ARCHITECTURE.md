@@ -9,7 +9,7 @@
 | Standard runner | `mk` | Single entrypoint for all blocking (`./mk ci`), nightly (`./mk ci-nightly`), release (`./mk ci-release`), and inner-loop (`./mk check`, `./mk fix`, `./mk test-fast`, `./mk watch`) tasks. |
 | Pinned versions | `mk.versions` | Single source of truth for nightly toolchain date, `cargo-binstall` crate versions, `tombi`, and `shellcheck`. |
 | Local extensions | `mk.local` | Repository-specific gate additions (`LOCAL_CI_GATES`), overrides (`LOCAL_OVERRIDES`), extra tools (`LOCAL_CARGO_TOOLS`), package scopes (`MIRI_PACKAGES`, `MUTANTS_PACKAGES`), and ratchets (`COVERAGE_FAIL_UNDER_LINES`, `ECHOES_MAX_*`). |
-| Adoption script | `scripts/adopt.sh` | Idempotent dry-run/apply script that syncs standard files (`mk`, `mk.versions`, `.github/actions/setup/action.yml`) and seeds missing configs, lints, workflows, and agent guides into any single-crate or workspace Rust repository. |
+| Adoption script | `scripts/adopt.sh` | Idempotent dry-run/apply script that syncs standard files (`mk`, `mk.versions`, `.github/actions/setup/action.yml`) and seeds missing gate configs, lints, `docs/DEBT.md`, and workflows into any single-crate or workspace Rust repository. |
 | Gate selftest | `tests/gate_selftest.sh` | Proves every gate can fail by injecting one violation per gate into a scratch repository and asserting that `./mk <gate>` fails with the expected diagnostic, plus testing `scripts/adopt.sh` idempotency across workspace, single-crate, cargo-make, and custom-runner fixtures. |
 | Sample crates | `crates/sample-lib`, `crates/sample-bin` | Minimal library and binary crates exercising workspace lint inheritance, doctests, README inclusion, CLI integration tests, and 100% mutation/line coverage. |
 

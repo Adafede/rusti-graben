@@ -7,7 +7,7 @@ the gate fails for that reason (template CI, every PR).
 
 ## `./mk ci` (blocking, every PR and push) & `./mk ci-fast` (local `pre-push`)
 
-`./mk ci` runs all 21 blocking gates below. `./mk ci-fast` (used by `prek` on `pre-push`) runs the same fast local checks with `test-fast` (`cargo nextest`, no doctests) while deferring `mutants-diff` and network `audit` to GitHub Actions PR CI. When a branch diff against the base branch touches only documentation, workflow, or non-Rust hygiene config files, both `./mk ci` and `./mk ci-fast` automatically skip the Rust compilation gates (`fmt`, `lint`, `lints-inherit`, `test`, `test-fast`, `doc`, `deny`, `machete`, `msrv`, `echoes`, `semver`, `wasm`, `mutants-diff`) while still enforcing `tools`, `actions`, `shell`, `commits`, `ratchet`, `tombi`, `typos`, and `refquiem`.
+`./mk ci` runs all 21 blocking gates below. `./mk ci-fast` (used by `prek` on `pre-push`) runs the same local checks with `test-fast` (`cargo nextest`, no doctests) while deferring `mutants-diff` and network `audit` to pull request CI. When a branch diff against the base branch touches only standalone Markdown (excluding single-crate root `README.md` or any file referenced via `include_str!`/`include_bytes!` in `*.rs`), `.github/` files, or non-Rust hygiene config files, both `./mk ci` and `./mk ci-fast` skip the Rust compilation gates (`fmt`, `lint`, `lints-inherit`, `test`, `test-fast`, `doc`, `deny`, `machete`, `msrv`, `echoes`, `semver`, `wasm`, `mutants-diff`) while still enforcing `tools`, `actions`, `shell`, `commits`, `ratchet`, `tombi`, `typos`, and `refquiem`.
 
 | Gate (alias) | Tool | Catches | Selftest violation |
 |---|---|---|---|
@@ -39,23 +39,15 @@ the gate fails for that reason (template CI, every PR).
 
 On scheduled runs (`GITHUB_EVENT_NAME=schedule`), if the repository has no commits in the last 24 hours, `./mk ci-nightly` runs only `audit` and `outdated` instead of re-running multi-hour mutation and Miri sweeps on unchanged code.
 
-| Gate (alias) | Tool | Catches |
-|---|---|---|
-| mutants | cargo-mutants (`.cargo/mutants.toml`), `MUTANTS_PACKAGES` if set | Code whose behavior no test checks; zero missed mutants |
+| Gate (alias) | Tool | Catches | Selftest violation |
+|---|---|---|---|
+| mutants | cargo-mutants (`.cargo/mutants.toml`), `MUTANTS_PACKAGES` if set | Code whose behavior no test checks; zero missed mutants | Untested fn; low free disk; `LOCAL_OVERRIDES=(mutants)` |
+| coverage (`cov`) | cargo-llvm-cov `--fail-under-lines` | Line coverage below `COVERAGE_FAIL_UNDER_LINES` (ratchet, only goes up) | Untested fn dropping line coverage below floor |
+| powerset (`feature-powerset`, `hack`) | cargo-hack `--feature-powerset --no-dev-deps check` | Feature combinations that do not compile | Type error behind optional feature |
+| miri | miri on the pinned nightly, isolation disabled, `MIRI_PACKAGES` if set | Undefined behavior and memory leaks in unit, integration, and doc tests | Heap memory leak in unit test |
+| outdated | cargo-outdated `--exit-code 1` | Direct dependencies behind their latest release | Outdated `itoa = "0.4"` dependency |
 
-Both mutants gates run through one bounded runner in `mk`, because an unbounded
-cargo-mutants run has wedged developer machines and cut a CI runner off from
-GitHub. It runs `MUTANTS_JOBS` mutants at once (1 locally, half the cores on CI),
-splits the cores between them and leaves half free locally, builds without
-debuginfo or incremental caches, uses `test_tool = "nextest"` and
-`timeout_multiplier = 1.5` in `.cargo/mutants.toml`, at `nice 19`, and a watchdog
-refuses to start, or stops the run cleanly, when available memory falls below
-`MUTANTS_MIN_FREE_MEM_PCT` (15) or free disk below `MUTANTS_MIN_FREE_DISK_GB` (10).
-`./mk mutants -p crate` runs one crate.
-| coverage (`cov`) | cargo-llvm-cov `--fail-under-lines` | Line coverage below `COVERAGE_FAIL_UNDER_LINES` (ratchet, only goes up) |
-| powerset (`feature-powerset`, `hack`) | cargo-hack `--feature-powerset` | Feature combinations that do not compile |
-| miri | miri on the pinned nightly, isolation disabled, `MIRI_PACKAGES` if set | Undefined behavior, mostly in dependencies |
-| outdated | cargo-outdated `--exit-code 1` | Direct dependencies behind their latest release |
+Both mutants gates (`mutants` and `mutants-diff`) run through one bounded runner in `mk`, because an unbounded `cargo-mutants` run can wedge developer machines or exhaust a CI runner. It runs `MUTANTS_JOBS` mutants at once (1 locally, half the cores on CI), splits the remaining cores between build jobs while leaving half free locally, builds without debuginfo or incremental caches, uses `test_tool = "nextest"` and `timeout_multiplier = 1.5` in `.cargo/mutants.toml`, runs at `nice 19`, and stops cleanly if available memory falls below `MUTANTS_MIN_FREE_MEM_PCT` (15) or free disk falls below `MUTANTS_MIN_FREE_DISK_GB` (10). `./mk mutants -p crate` runs one crate.
 
 ## `./mk ci-release` (on `v*` tags)
 
