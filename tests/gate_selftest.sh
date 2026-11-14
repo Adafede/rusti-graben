@@ -314,6 +314,25 @@ expect_fail mutants "cannot replace mutants" "a repository task replacing the bo
 append_lib "$untested_fn"
 expect_fail coverage "coverage" "line coverage below the floor"
 
+printf '\n[features]\nextra = []\n' >>"$LIB_TOML"
+append_lib '#[cfg(feature = "extra")]
+pub fn feature_broken() -> usize {
+    "wrong"
+}'
+expect_fail powerset "mismatched types" "feature-only compilation error"
+
+append_lib '#[cfg(test)]
+mod miri_leak {
+    #[test]
+    fn leak() {
+        std::mem::forget(Box::new(1u8));
+    }
+}'
+expect_fail miri "memory leaked" "memory leak under Miri"
+
+printf '\n[dependencies]\nitoa = "0.4"\n' >>"$LIB_TOML"
+expect_fail outdated "itoa" "outdated dependency"
+
 # --- scripts/adopt.sh ------------------------------------------------------
 
 # check <description> <command...>: the command must succeed.
