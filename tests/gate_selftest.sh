@@ -37,21 +37,27 @@ reset() {
     for t in $(git tag -l 'v*'); do git tag -d "$t" >/dev/null; done
 }
 
-# expect_fail <task> <marker> <description>; the violation is already applied.
-expect_fail() {
-    local task="$1" marker="$2" what="$3" out rc=0
-    out="$(./mk "$task" 2>&1)" || rc=$?
+# expect_fail_cmd <marker> <description> <cmd...>; the violation is already applied.
+expect_fail_cmd() {
+    local marker="$1" what="$2" out rc=0
+    shift 2
+    out="$("$@" 2>&1)" || rc=$?
     if [ "$rc" -eq 0 ]; then
-        echo "NOT CAUGHT   $task: $what"
+        echo "NOT CAUGHT   $what"
         failed=1
     elif ! grep -qF -- "$marker" <<<"$out"; then
-        echo "WRONG CAUSE  $task: $what (expected '$marker' in output)"
+        echo "WRONG CAUSE  $what (expected '$marker' in output)"
         tail -20 <<<"$out"
         failed=1
     else
-        echo "caught       $task: $what"
+        echo "caught       $what"
     fi
     reset
+}
+
+# expect_fail <task> <marker> <description>; the violation is already applied.
+expect_fail() {
+    expect_fail_cmd "$2" "$1: $3" ./mk "$1"
 }
 
 append_lib() { printf '\n%s\n' "$1" >>"$LIB"; }
@@ -86,6 +92,9 @@ expect_fail shell "SC2086" "unquoted variable in a shell script"
 echo "// change" >>"$LIB"
 git commit -qam "Update the library"
 expect_fail commits "not a conventional commit" "commit message outside Conventional Commits"
+
+printf '# comment only\n' >"$OUTSIDE/empty_msg"
+expect_fail_cmd "not a conventional commit" "commits: comment-only commit-msg file" ./mk commits "$OUTSIDE/empty_msg"
 
 append_lib 'fn bad( ){}'
 expect_fail fmt "Diff in" "unformatted code"
@@ -237,17 +246,59 @@ git commit -qam "baseline echoes ratchet"
 perl -pi -e 's/^ECHOES_MAX_APPROXIMATE=.*/ECHOES_MAX_APPROXIMATE=5/' mk.local
 MK_BASE=HEAD expect_fail ratchet "went up" "echoes ratchet raised"
 
+printf 'ECHOES_MAX_APPROXIMATE=5\n' >>mk.local
+expect_fail ratchet "went up" "echoes ratchet raised above implicit 0 baseline"
+
+perl -pi -e 's/^redundant_pub_crate = "allow"/# placeholder = "allow"\nredundant_pub_crate = "allow"/' Cargo.toml
+git commit -qam "chore: add commented allow"
+perl -pi -e 's/^# placeholder = "allow"/missing_docs = "allow"/' Cargo.toml
+MK_BASE=HEAD expect_fail ratchet "lint allow count went up" "commented allow replaced by active lint allow"
+
 append_lib "// $typo"
 expect_fail ci "FAIL  typos" "ci tier propagates a failing gate"
 
 printf '\n%s\n' "$typo" >>docs/GATES.md
 expect_fail ci-fast "docs/config-only diff against base" "ci-fast skips Rust compilation gates on docs-only diff and catches docs typo"
 
+single_doc="$OUTSIDE/single-doc"
+mkdir -p "$single_doc/src"
+cat >"$single_doc/Cargo.toml" <<'EOF'
+[package]
+name = "single-doc"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100.0"
+license = "AGPL-3.0-or-later"
+
+[lints.clippy]
+[lints.rust]
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+EOF
+printf '#![doc = include_str!("../README.md")]\n' >"$single_doc/src/lib.rs"
+printf '# single-doc\n' >"$single_doc/README.md"
+cp mk mk.versions rust-toolchain.toml .tombi.toml .typos.toml .echoes.toml .refquiem.toml deny.toml "$single_doc/"
+(
+    cd "$single_doc"
+    cargo generate-lockfile --offline --quiet
+    git init -q
+    git add -A
+    git commit -qm "chore: init"
+    git tag base
+    printf '\nSee [`nope`].\n' >>README.md
+)
+expect_fail_cmd "unresolved link" "ci-fast: root README.md broken link not skipped in single-crate repo" \
+    bash -c 'cd "$1" && ./mk ci-fast' _ "$single_doc"
+
 printf '\n[workspace.metadata.x]\nkey=1\n' >>Cargo.toml
 expect_fail toml "not formatted" "toml alias invokes tombi"
 
 append_lib "$untested_fn"
 expect_fail mutants-diff "MISSED" "untested function added on the branch"
+
+printf '\npub mod extra;\n' >>"$LIB"
+printf '%s\n' "$untested_fn" >crates/sample-lib/src/extra.rs
+expect_fail mutants-diff "MISSED" "untested function in an untracked .rs file"
 
 # --- nightly tier -----------------------------------------------------------
 

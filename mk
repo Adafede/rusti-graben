@@ -15,6 +15,7 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
+export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 # shellcheck source=mk.versions
 . ./mk.versions
 
@@ -45,7 +46,8 @@ case "$cmd" in
     unused-deps) cmd=machete ;;
     duplication | dup) cmd=echoes ;;
     stale-refs) cmd=refquiem ;;
-    feature-powerset) cmd=powerset ;;
+    feature-powerset | hack) cmd=powerset ;;
+    cov) cmd=coverage ;;
 esac
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -70,10 +72,17 @@ skip() {
     exit 0
 }
 
-has_lib() { cargo metadata --no-deps --format-version 1 --locked | grep -q '"kind":\["lib"\]'; }
+has_lib() { cargo metadata --no-deps --format-version 1 --locked | grep -Eq '"kind":\[[^]]*"(lib|rlib|dylib|cdylib|staticlib|proc-macro)"'; }
 # Declared outside comments (the template's toolchain file mentions it in one).
 has_wasm() { grep -Eq '^[^#]*wasm32' rust-toolchain.toml Cargo.toml 2>/dev/null; }
-msrv() { sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1; }
+msrv() {
+    local v
+    v="$(sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)"
+    if [ -z "$v" ]; then
+        v="$(cargo metadata --no-deps --format-version 1 2>/dev/null | grep -o '"rust_version":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+    fi
+    printf '%s\n' "$v"
+}
 
 # Branch this work merges into: MK_BASE, the PR base on CI, origin/HEAD, origin/main, origin/master.
 base_ref() {
@@ -118,7 +127,7 @@ tool_version() {
 has_version() {
     local out
     out="$(tool_version "$1" 2>/dev/null)" || return 1
-    printf '%s\n' "$out" | grep -Eq "(^|[^0-9.])${2//./\\.}([^0-9.]|$)"
+    printf '%s\n' "$out" | grep -Eq "(^|[^0-9.])${2//./\\.}([^0-9.-]|$)"
 }
 
 require() {
@@ -155,6 +164,7 @@ install_tombi() {
     mkdir -p "$bin_dir"
     install -m 0755 "$tmp/tombi-cli-${TOMBI_VERSION}-${target}/tombi" "$bin_dir/tombi"
     rm -rf "$tmp"
+    require tombi "$TOMBI_VERSION"
 }
 
 install_shellcheck() {
@@ -170,6 +180,7 @@ install_shellcheck() {
     mkdir -p "$bin_dir"
     install -m 0755 "$tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$bin_dir/shellcheck"
     rm -rf "$tmp"
+    require shellcheck "$SHELLCHECK_VERSION"
 }
 
 install_cargo_tools() {
@@ -253,9 +264,10 @@ run_mutants() {
     fi
     [ "$threads" -ge 1 ] || threads=1
     if [ -z "${TMPDIR:-}" ]; then
+        local tmp_disk
         if [ -n "${RUNNER_TEMP:-}" ] && [ -d "$RUNNER_TEMP" ]; then
             export TMPDIR="$RUNNER_TEMP"
-        elif [ "$(free_disk_gb /tmp)" -lt "$MUTANTS_MIN_FREE_DISK_GB" ]; then
+        elif tmp_disk="$(free_disk_gb /tmp)" && [ "${tmp_disk:-0}" -lt "$MUTANTS_MIN_FREE_DISK_GB" ]; then
             mkdir -p "$ROOT_DIR/target/tmp"
             export TMPDIR="$ROOT_DIR/target/tmp"
         fi
@@ -364,9 +376,22 @@ docs_or_meta_only_diff() {
     [ -n "$changed" ] || return 1
     while IFS= read -r f; do
         case "$f" in
-            docs/* | .github/* | skills/* | .vscode/* | LICENSE* | NOTICE* | *.md | \
+            docs/*)
+                if git grep -qF "$f" -- '*.rs' 2>/dev/null; then return 1; fi
+                ;;
+            .github/* | skills/* | .agents/* | .vscode/* | \
             .typos.toml | .tombi.toml | .refquiem.toml | prek.toml | bacon.toml | renovate.json | .editorconfig | .gitignore)
-                case "$f" in */README.md) return 1 ;; esac
+                ;;
+            */*)
+                return 1
+                ;;
+            *.md)
+                if [ "$f" = README.md ] && {
+                    grep -q '^\[package\]' Cargo.toml 2>/dev/null ||
+                        git grep -qE 'include_(str|bytes)!\([^)]*\.\./\.\./README\.md' -- '*.rs' 2>/dev/null
+                }; then
+                    return 1
+                fi
                 ;;
             *)
                 return 1
@@ -531,7 +556,7 @@ EOF
             exit 0
         fi
         if [ "${#LOCAL_SYSTEM_PACKAGES[@]}" -gt 0 ]; then
-            if [ "${CI:-}" = true ] && command -v apt-get >/dev/null; then
+            if { [ "${CI:-}" = true ] || [ "${CI:-}" = 1 ]; } && command -v apt-get >/dev/null; then
                 sudo apt-get update -qq
                 sudo apt-get install -y --no-install-recommends "${LOCAL_SYSTEM_PACKAGES[@]}"
             else
@@ -541,7 +566,10 @@ EOF
         install_cargo_tools "${LOCAL_CARGO_TOOLS[@]}"
         for t in "${LOCAL_SETUP[@]}"; do cargo_make "$t"; done
         rustup toolchain install # from rust-toolchain.toml
-        rustup toolchain install "$(msrv)" --profile minimal
+        v="$(msrv)"
+        if [ -n "$v" ]; then
+            rustup toolchain install "$v" --profile minimal
+        fi
         install_tombi
         install_shellcheck
         install_cargo_tools "${CARGO_TOOLS_CI[@]}"
@@ -577,25 +605,38 @@ EOF
     ratchet)
         # The ratchets in mk.local and Cargo.toml may only tighten relative to the base branch:
         # the coverage floor goes up, the echoes legacy counts and Cargo.toml allow lines go down.
+        [[ "$COVERAGE_FAIL_UNDER_LINES" =~ ^[0-9]+$ ]] && [ "$COVERAGE_FAIL_UNDER_LINES" -le 100 ] ||
+            die "COVERAGE_FAIL_UNDER_LINES must be an integer 0..=100, got '$COVERAGE_FAIL_UNDER_LINES'"
+        for key in ECHOES_MAX_APPROXIMATE ECHOES_MAX_REUSE; do
+            [[ "${!key}" =~ ^[0-9]+$ ]] || die "$key must be a non-negative integer, got '${!key}'"
+        done
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
         mb="$(git merge-base "$base" HEAD)"
+        count_allows() {
+            awk '/^\[(workspace\.)?lints\./{s=1;next} /^\[/{s=0} s && $0 !~ /^[[:space:]]*#/ && /= *"allow"/{c++} END{print c+0}'
+        }
         base_cargo="$(git show "$mb:Cargo.toml" 2>/dev/null || true)"
         if grep -Eq '^\[(workspace\.)?lints\.' <<<"$base_cargo"; then
-            old_allows="$(grep -c '= *"allow"' <<<"$base_cargo" || true)"
-            new_allows="$(grep -c '= *"allow"' Cargo.toml || true)"
+            old_allows="$(count_allows <<<"$base_cargo")"
+            new_allows="$(count_allows <Cargo.toml)"
             if [ "$new_allows" -gt "$old_allows" ]; then
                 die "Cargo.toml lint allow count went up from $old_allows to $new_allows (use #[expect(.., reason)] at the site)"
             fi
         fi
         base_local="$(git show "$mb:mk.local" 2>/dev/null || true)"
-        [ -n "$base_local" ] || exit 0
-        old_value() { sed -n "s/^$1=\"*\([0-9]*\)\"*.*/\1/p" <<<"$base_local"; }
+        old_value() { sed -n "s/^$1=\"*\([0-9][0-9]*\)\"*.*/\1/p" <<<"$base_local" | head -1; }
         old="$(old_value COVERAGE_FAIL_UNDER_LINES)"
+        if [ -z "$old" ] && git cat-file -e "$mb:mk" 2>/dev/null; then
+            old=100
+        fi
         if [ -n "$old" ] && [ "$COVERAGE_FAIL_UNDER_LINES" -lt "$old" ]; then
             die "COVERAGE_FAIL_UNDER_LINES went down from $old to $COVERAGE_FAIL_UNDER_LINES"
         fi
         for key in ECHOES_MAX_APPROXIMATE ECHOES_MAX_REUSE; do
             old="$(old_value "$key")"
+            if [ -z "$old" ] && git cat-file -e "$mb:.echoes.toml" 2>/dev/null; then
+                old=0
+            fi
             if [ -n "$old" ] && [ "${!key}" -gt "$old" ]; then
                 die "$key went up from $old to ${!key}"
             fi
@@ -603,7 +644,7 @@ EOF
         ;;
     commits)
         if [ $# -gt 0 ] && [ -f "$1" ]; then
-            subject="$(grep -v '^#' "$1" | head -1)"
+            subject="$(grep -v '^#' "$1" | head -1 || true)"
             grep -Eq "$CONVENTIONAL" <<<"$subject" || die "not a conventional commit: $subject"
             exit 0
         fi
@@ -641,10 +682,10 @@ EOF
         done
         # Workspace lints only apply to crates that opt in.
         missing=0
-        for manifest in $(cargo metadata --no-deps --format-version 1 --locked | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4); do
+        while IFS= read -r manifest; do
             awk '/^\[lints\]/{s=1;next} /^\[/{s=0} s && /^workspace *= *true/{f=1} END{exit !f}' "$manifest" ||
                 { echo "missing '[lints] workspace = true' in $manifest"; missing=1; }
-        done
+        done < <(cargo metadata --no-deps --format-version 1 --locked | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4)
         [ "$missing" = 0 ]
         ;;
     test) cargo test --workspace --all-features --locked ;;
@@ -697,6 +738,7 @@ EOF
             if grep -q "^$key=" mk.local 2>/dev/null; then
                 sed -i.bak "s/^$key=.*/$kv/" mk.local && rm mk.local.bak
             else
+                if [ -s mk.local ] && [ -n "$(tail -c1 mk.local)" ]; then printf '\n' >>mk.local; fi
                 printf '%s\n' "$kv" >>mk.local
             fi
         done
@@ -750,8 +792,12 @@ EOF
         diff="$(mktemp)"
         trap 'rm -f "$diff"' EXIT
         git diff --no-ext-diff --no-color "$(git merge-base "$base" HEAD)" -- '*.rs' >"$diff"
+        while IFS= read -r u; do
+            [ -n "$u" ] || continue
+            git diff --no-index --no-ext-diff --no-color -- /dev/null "$u" >>"$diff" || true
+        done < <(git ls-files --others --exclude-standard -- '*.rs')
         [ -s "$diff" ] || skip "no Rust changes against $base"
-        run_mutants --in-diff "$diff"
+        run_mutants --in-diff "$diff" "$@"
         ;;
     coverage | cov)
         need cargo-llvm-cov
