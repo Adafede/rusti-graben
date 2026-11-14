@@ -300,6 +300,9 @@ printf '\npub mod extra;\n' >>"$LIB"
 printf '%s\n' "$untested_fn" >crates/sample-lib/src/extra.rs
 expect_fail mutants-diff "MISSED" "untested function in an untracked .rs file"
 
+printf '\nSee `AGENTS.md`.\n' >>README.md
+expect_fail local:docs_boundary "must not reference agent files" "human doc referencing AGENTS.md"
+
 # --- nightly tier -----------------------------------------------------------
 
 append_lib "$untested_fn"
@@ -328,7 +331,8 @@ mod miri_leak {
         std::mem::forget(Box::new(1u8));
     }
 }'
-expect_fail miri "memory leaked" "memory leak under Miri"
+# cargo-miri bakes the current temp $WORK path into test runner stubs.
+CARGO_TARGET_DIR="$WORK/target-miri" expect_fail miri "memory leaked" "memory leak under Miri"
 
 printf '\n[dependencies]\nitoa = "0.4"\n' >>"$LIB_TOML"
 expect_fail outdated "itoa" "outdated dependency"
@@ -377,6 +381,7 @@ check "second apply succeeds" adopt 0 "$legacy"
 check "second apply changes nothing" test "$before" = "$(fingerprint "$legacy")"
 
 check "mk.local does not inherit the template's coverage floor" bash -c '! grep -q "^COVERAGE_FAIL_UNDER_LINES" "$1/mk.local"' _ "$legacy"
+check "mk.local does not inherit template local gates" bash -c '! grep -q "docs_boundary" "$1/mk.local"' _ "$legacy"
 check "a stale standard file is synced" bash -c 'echo "# stale" >>"$1/mk.versions" && DRY_RUN=0 "$2/scripts/adopt.sh" "$1" && ! grep -q "# stale" "$1/mk.versions"' _ "$legacy" "$SRC"
 
 wrapped="$OUTSIDE/cargo-make-repo"

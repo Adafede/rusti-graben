@@ -23,3 +23,17 @@
 #
 # Ratchet: may only go up (./mk ratchet). Set with ./mk coverage-baseline.
 COVERAGE_FAIL_UNDER_LINES="100"
+
+# Template-only gate (stripped by scripts/adopt.sh with the ratchet block above):
+# human-facing docs, templates, workflows, and sample crates must never reference agent files.
+LOCAL_CI_GATES=(docs_boundary)
+task_docs_boundary() {
+    local hits
+    hits="$(grep -rnHE 'AGENTS\.md|CLAUDE\.md|SKILL\.md|\.agents/|[Aa][Ii] agent|coding agent' \
+        README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md CITATION.cff codemeta.json \
+        docs .github crates 2>/dev/null || true)"
+    if [ -n "$hits" ]; then
+        printf '%s\n' "$hits" >&2
+        die "human-facing files must not reference agent files or instructions"
+    fi
+}
