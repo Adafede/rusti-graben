@@ -136,11 +136,6 @@ require() {
 
 require_spec() { require "$(spec_tool "$1")" "$(spec_ver "$1")"; }
 
-require_tools() {
-    local spec
-    for spec in "$@"; do require_spec "$spec"; done
-}
-
 spec_of() {
     local spec
     for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${LOCAL_CARGO_TOOLS[@]}"; do
@@ -581,7 +576,7 @@ EOF
     tools)
         require tombi "$TOMBI_VERSION"
         require shellcheck "$SHELLCHECK_VERSION"
-        require_tools "${CARGO_TOOLS_CI[@]}" "${LOCAL_CARGO_TOOLS[@]}"
+        for spec in "${CARGO_TOOLS_CI[@]}" "${LOCAL_CARGO_TOOLS[@]}"; do require_spec "$spec"; done
         ;;
     actions)
         [ -d .github ] || skip "no .github directory"
