@@ -5,6 +5,5 @@
     reason = "printing the sum is this binary's interface"
 )]
 fn main() {
-    let result = sample_lib::add(10, 20);
-    println!("10 + 20 = {result}");
+    println!("10 + 20 = {}", sample_lib::add(10, 20));
 }
