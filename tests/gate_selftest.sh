@@ -168,25 +168,8 @@ pub const fn even(n: u32) -> bool {
 }'
 expect_fail msrv "is_multiple_of" "API newer than rust-version"
 
-append_lib '/// Weighted byte sum.
-#[must_use]
-pub fn checksum_a(data: &[u8]) -> u64 {
-    let mut acc = 0u64;
-    for (i, b) in data.iter().enumerate() {
-        acc = acc.wrapping_add((i as u64 + 1).wrapping_mul(u64::from(*b)));
-    }
-    acc
-}
-
-/// Weighted byte sum.
-#[must_use]
-pub fn checksum_b(data: &[u8]) -> u64 {
-    let mut acc = 0u64;
-    for (i, b) in data.iter().enumerate() {
-        acc = acc.wrapping_add((i as u64 + 1).wrapping_mul(u64::from(*b)));
-    }
-    acc
-}'
+append_lib "${checksum_fn/fn checksum/fn checksum_a}"
+append_lib "${checksum_fn/fn checksum/fn checksum_b}"
 expect_fail echoes "checksum_b" "duplicated function"
 
 # A dependency already exports `checksum`; the workspace re-implements it.
