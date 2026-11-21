@@ -64,7 +64,6 @@ cargo_make() {
     cargo make --no-workspace "$@"
 }
 
-
 # Not applicable here: exit 0 when run directly, SKIP_RC when run by a tier.
 skip() {
     echo "[skip] $cmd: $*"
@@ -338,8 +337,8 @@ gate_desc() {
         wasm) echo "wasm32 target compilation check" ;;
         mutants-diff) echo "mutation testing on branch Rust diff" ;;
         mutants) echo "bounded full-workspace mutation testing" ;;
-        coverage | cov) echo "line coverage floor check" ;;
-        powerset | hack) echo "feature powerset compilation check" ;;
+        coverage) echo "line coverage floor check" ;;
+        powerset) echo "feature powerset compilation check" ;;
         miri) echo "undefined behavior check under Miri" ;;
         outdated) echo "direct dependency freshness check" ;;
     esac
@@ -356,7 +355,7 @@ gate_hint() {
         echoes) echo "deduplicate code, or run './mk echoes-baseline' on initial adoption (see docs/GATES.md)" ;;
         refquiem) echo "update stale doc/comment references, or add '// refquiem: allow(name)' with docs/DEBT.md entry" ;;
         mutants | mutants-diff) echo "add a test that kills the surviving mutant, or document an exclusion in .cargo/mutants.toml" ;;
-        coverage | cov) echo "add tests to restore line coverage, or run './mk coverage-baseline' when raising the floor" ;;
+        coverage) echo "add tests to restore line coverage, or run './mk coverage-baseline' when raising the floor" ;;
         msrv) echo "avoid APIs newer than rust-version in Cargo.toml, or bump rust-version intentionally" ;;
     esac
 }
@@ -504,7 +503,7 @@ Setup & baselines:
 EOF
         ;;
     --list | --list-all-steps)
-        printf '%s\n' help setup tools check fix test-fast watch bench udeps cov hack \
+        printf '%s\n' help setup check fix test-fast watch bench udeps cov hack \
             toml unused-deps duplication dup stale-refs feature-powerset \
             "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" \
             ci ci-fast ci-nightly ci-release coverage-baseline echoes-baseline selftest | sort -u
@@ -799,7 +798,7 @@ EOF
         [ -s "$diff" ] || skip "no Rust changes against $base"
         run_mutants --in-diff "$diff" "$@"
         ;;
-    coverage | cov)
+    coverage)
         need cargo-llvm-cov
         cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info \
             --fail-under-lines "$COVERAGE_FAIL_UNDER_LINES"
@@ -816,7 +815,7 @@ EOF
         fi
         echo "COVERAGE_FAIL_UNDER_LINES: $COVERAGE_FAIL_UNDER_LINES -> $pct (the ratchet gate rejects a decrease against the base branch)"
         ;;
-    powerset | hack) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
+    powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
     miri)
         # Undefined behaviour, not sandboxing: tests may read the clock and the
         # environment. MIRI_PACKAGES in mk.local limits it to the crates where
