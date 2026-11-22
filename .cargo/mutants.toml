@@ -3,3 +3,7 @@
 # every `exclude_globs` / `exclude_re` entry needs a comment saying why no test can.
 test_tool = "nextest"
 timeout_multiplier = 1.5
+# Skip gitignored directories (e.g. target/, fetched assets) when copying the tree; untracked non-ignored files are still copied.
+gitignore = true
+# Cap rustc lints inside mutant builds so denied lints like `dead_code = "deny"` do not mask real mutants as Unviable.
+cap_lints = true

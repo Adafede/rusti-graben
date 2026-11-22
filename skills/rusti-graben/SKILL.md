@@ -24,6 +24,7 @@ metadata:
 - **Adopt**: `DRY_RUN=0 scripts/adopt.sh <repo>` (see `docs/ADOPTING.md` and `AGENTS.md`).
 
 ## Commands & Gates
-- `./mk setup [ci|nightly|all]` | `./mk check` (`fmt`+`tombi`+`typos`+`lint`) | `./mk fix` | `./mk test-fast` | `./mk watch` | `./mk help` | `./mk --list`
-- `./mk ci-fast` (pre-push) | `./mk ci` (`tools`, `actions`, `shell`, `commits`, `ratchet`, `fmt`, `tombi`, `typos`, `lint`, `lints-inherit`, `test`, `doc`, `deny`, `audit`, `machete`, `msrv`, `echoes`, `refquiem`, `semver`, `wasm`, `mutants-diff`; see `docs/GATES.md`)
-- `./mk ci-nightly` (`mutants`, `coverage`, `powerset`, `miri`, `outdated`) | `./mk ci-release` | `./mk coverage-baseline` | `./mk echoes-baseline` | `./mk selftest`
+- **Edit loop**: `./mk check [-p <crate>]` | `./mk check-changed` | `./mk fix` | `./mk test-fast [-p <crate>]` | `./mk test-changed` | `./mk watch`
+- **Mutant loop**: `./mk mutants-diff -f <file>` → `./mk mutants-diff --iterate` | `./mk mutants-affected [base]` | `./mk mutants-plan [--mode diff|affected|full]`
+- **Pre-push & CI**: `./mk ci-fast` | `./mk ci-core` | `./mk ci` (full non-iterated `mutants-diff`, `tools`, `actions`, `shell`, `commits`, `ratchet`, `fmt`, `tombi`, `typos`, `lint`, `lints-inherit`, `test`, `doc`, `deny`, `audit`, `machete`, `msrv`, `echoes`, `refquiem`, `semver`, `wasm`; see `docs/GATES.md`)
+- **Nightly & setup**: `./mk setup [ci|nightly|all]` | `./mk ci-nightly-checks` | `./mk ci-nightly` | `./mk ci-release` | `./mk coverage-baseline` | `./mk echoes-baseline` | `./mk selftest`

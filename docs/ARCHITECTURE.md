@@ -6,7 +6,7 @@
 
 | Component | Path | Responsibility |
 |---|---|---|
-| Standard runner | `mk` | Single entrypoint for all blocking (`./mk ci`), nightly (`./mk ci-nightly`), release (`./mk ci-release`), and inner-loop (`./mk check`, `./mk fix`, `./mk test-fast`, `./mk watch`) tasks. |
+| Standard runner | `mk` | Single entrypoint for all blocking (`./mk ci`, `./mk ci-core`), nightly (`./mk ci-nightly`, `./mk ci-nightly-checks`), release (`./mk ci-release`), mutation planning/scoping (`./mk mutants-plan`, `./mk mutants-affected`, `./mk mutants-diff`), and inner-loop (`./mk check`, `./mk check-changed`, `./mk fix`, `./mk test-fast`, `./mk test-changed`, `./mk watch`) tasks. |
 | Pinned versions | `mk.versions` | Single source of truth for nightly toolchain date, `cargo-binstall` crate versions, `tombi`, and `shellcheck`. |
 | Local extensions | `mk.local` | Repository-specific gate additions (`LOCAL_CI_GATES`), overrides (`LOCAL_OVERRIDES`), extra tools (`LOCAL_CARGO_TOOLS`), package scopes (`MIRI_PACKAGES`, `MUTANTS_PACKAGES`), and ratchets (`COVERAGE_FAIL_UNDER_LINES`, `ECHOES_MAX_*`). |
 | Adoption script | `scripts/adopt.sh` | Idempotent dry-run/apply script that syncs standard files (`mk`, `mk.versions`, `.github/actions/setup/action.yml`) and seeds missing gate configs, lints, `docs/DEBT.md`, and workflows into any single-crate or workspace Rust repository. |
@@ -15,7 +15,7 @@
 
 ## Design Invariants
 
-1. **Zero drift between local and CI**: `.github/workflows/*.yml` and `prek.toml` never invoke `cargo`, `clippy`, or linters directly; they call `./mk <task>`.
+1. **Zero drift between local and CI**: `.github/workflows/*.yml` and `prek.toml` never invoke `cargo`, `clippy`, or linters directly; they call `./mk <task>`. `.github/actions/setup/action.yml` caches `MK_TOOLS_DIR` (`~/.cargo/mk-tools`) alongside Cargo artifacts so sharded CI jobs restore pinned tools without recompiling or racing on cache writes.
 2. **Hard failure on tool drift**: `mk` verifies exact pinned versions from `mk.versions` before running any gate. `./mk setup` caches pinned binaries per version under `MK_TOOLS_DIR` (default `$CARGO_HOME/mk-tools`) so checkouts with different `mk.versions` pins coexist without clobbering `$CARGO_HOME/bin` or being shadowed by system packages.
-3. **Bounded mutation testing**: `run_mutants` in `mk` caps concurrency, disables debuginfo/incremental caches, runs at `nice 19`, and monitors free memory and disk space with a watchdog.
+3. **Bounded, package-scoped mutation testing**: `run_mutants` in `mk` caps concurrency and `--jobserver-tasks`, disables debuginfo (`debug=0`), defaults `--gitignore=true`, reuses a persistent `.../target/mutants` cache guarded by an atomic `mkdir` lockdir when `jobs == 1` (or isolated target dirs when `jobs > 1`), supports `MUTANTS_IN_PLACE=1` / `--in-place` without passing `--jobs`, respects `cap_lints = true`, runs at `nice 19`, and monitors free memory and disk space with a watchdog. `mutants-diff` and `mutants-affected` scope to touched or reverse-dependent workspace packages via `cargo metadata`.
 4. **Ratchets only tighten**: `./mk ratchet` compares `Cargo.toml` lint allows, `COVERAGE_FAIL_UNDER_LINES`, and `ECHOES_MAX_*` against the merge-base and rejects any loosening.

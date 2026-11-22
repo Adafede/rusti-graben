@@ -60,6 +60,21 @@ expect_fail() {
     expect_fail_cmd "$2" "$1: $3" ./mk "$1"
 }
 
+# expect_pass <description> <cmd...>; resets afterward.
+expect_pass() {
+    local what="$1" out rc=0
+    shift
+    out="$("$@" 2>&1)" || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        echo "FAILED       $what (exit $rc)"
+        tail -20 <<<"$out"
+        failed=1
+    else
+        echo "ok           $what"
+    fi
+    reset
+}
+
 append_lib() { printf '\n%s\n' "$1" >>"$LIB"; }
 
 untested_fn='/// Doubles `x`.
@@ -217,6 +232,24 @@ pub const fn even(n: u32) -> bool {
 }'
 expect_fail msrv "is_multiple_of" "API newer than rust-version"
 
+perl -pi -e 's/^rust-version = .*/rust-version = "1.85"/' Cargo.toml
+append_lib '/// Whether `n` is even.
+#[must_use]
+pub const fn even(n: u32) -> bool {
+    n.is_multiple_of(2)
+}'
+expect_fail_cmd "is_multiple_of" "msrv: still fails inside tier when rust-version differs from active rustc" \
+    env MK_NESTED=1 MK_LINT_PASSED=1 ./mk msrv
+
+msrv_out="$(MK_NESTED=1 MK_LINT_PASSED=1 ./mk msrv 2>&1)" && msrv_rc=0 || msrv_rc=$?
+if [ "$msrv_rc" -eq 78 ] && grep -qF "already verified by lint on rustc" <<<"$msrv_out"; then
+    echo "ok           msrv: skips inside tier when lint already passed on matching rustc"
+else
+    echo "FAILED       msrv: expected nested skip on matching rustc (rc=$msrv_rc)"
+    printf '%s\n' "$msrv_out"
+    failed=1
+fi
+
 append_lib "${checksum_fn/fn checksum/fn checksum_a}"
 append_lib "${checksum_fn/fn checksum/fn checksum_b}"
 expect_fail echoes "checksum_b" "duplicated function"
@@ -332,6 +365,86 @@ printf '\npub mod extra;\n' >>"$LIB"
 printf '%s\n' "$untested_fn" >crates/sample-lib/src/extra.rs
 expect_fail mutants-diff "MISSED" "untested function in an untracked .rs file"
 
+printf 'MUTANTS_PACKAGES=(sample-lib)\n' >>mk.local
+printf '\nfn excluded_helper() -> usize { 1 }\n' >>crates/sample-bin/src/main.rs
+skip_out="$(./mk mutants-diff 2>&1)" && skip_rc=0 || skip_rc=$?
+if [ "$skip_rc" -eq 0 ] && grep -qF "no Rust changes in mutation scope against base" <<<"$skip_out"; then
+    echo "ok           mutants-diff: fast-skips when only an excluded package changes"
+else
+    echo "FAILED       mutants-diff: excluded-package fast-skip (rc=$skip_rc)"
+    printf '%s\n' "$skip_out"
+    failed=1
+fi
+reset
+
+printf '\nignored_mutants/\n' >>.gitignore
+mkdir -p ignored_mutants
+printf '%s\n' "$untested_fn" >ignored_mutants/extra.rs
+ig_out="$(./mk mutants-diff 2>&1)" && ig_rc=0 || ig_rc=$?
+if [ "$ig_rc" -eq 0 ] && grep -qF "no Rust changes in mutation scope against base" <<<"$ig_out"; then
+    echo "ok           mutants-diff: ignores gitignored .rs files under --gitignore=true"
+else
+    echo "FAILED       mutants-diff: gitignored .rs check (rc=$ig_rc)"
+    printf '%s\n' "$ig_out"
+    failed=1
+fi
+reset
+
+expect_pass "mutants: MUTANTS_IN_PLACE=1 succeeds without --jobs conflict" env MUTANTS_IN_PLACE=1 ./mk mutants -p sample-lib
+expect_pass "mutants: explicit --in-place succeeds without --jobs conflict" ./mk mutants -p sample-lib --in-place
+
+perl -0pi -e 's/\[workspace\.lints\.rust\]/[workspace.lints.rust]\ndead_code = "deny"/' Cargo.toml
+append_lib 'const fn masked_helper() -> usize {
+    42
+}
+
+/// Exposes the masked helper.
+#[must_use]
+pub const fn exposed_masked_helper() -> usize {
+    masked_helper()
+}'
+cap_off_out="$(./mk mutants -p sample-lib --cap-lints=false -F 'replace exposed_masked_helper' 2>&1)" && cap_off_rc=0 || cap_off_rc=$?
+if [ "$cap_off_rc" -eq 0 ] && grep -qF "unviable" <<<"$cap_off_out"; then
+    echo "ok           mutants: cap_lints=false masks dead_code-denied mutant as unviable"
+else
+    echo "FAILED       mutants: expected cap_lints=false baseline to produce unviable (rc=$cap_off_rc)"
+    printf '%s\n' "$cap_off_out"
+    failed=1
+fi
+expect_fail_cmd "MISSED" "cap_lints=true prevents dead_code=deny from masking mutant as Unviable" \
+    ./mk mutants -p sample-lib -F 'replace exposed_masked_helper'
+
+printf '\nfn downstream_untested() -> usize {\n    7\n}\n' >>crates/sample-bin/src/main.rs
+perl -pi -e 's/println!\(/let _ = downstream_untested();\n    println!(/' crates/sample-bin/src/main.rs
+git commit -qam "test: add downstream helper"
+upstream_base="$(git rev-parse HEAD)"
+printf '\n// upstream edit\n' >>"$LIB"
+MK_BASE="$upstream_base" expect_fail mutants-affected "MISSED" "upstream change mutates downstream dependent"
+
+plan_zero="$(./mk mutants-plan --mode diff)"
+if python3 -c 'import json, sys; d = json.loads(sys.argv[1]); assert d == {"mode":"diff","mutants":0,"shards":0,"packages":[]}, d' "$plan_zero"; then
+    echo "ok           mutants-plan: empty diff emits 0 mutants and 0 shards"
+else
+    echo "FAILED       mutants-plan: empty diff output '$plan_zero'"
+    failed=1
+fi
+append_lib "$untested_fn"
+plan_diff="$(./mk mutants-plan --mode diff)"
+if python3 -c 'import json, sys; d = json.loads(sys.argv[1]); assert d["mode"]=="diff" and d["mutants"]>0 and d["shards"]==1 and d["packages"]==["sample-lib"], d' "$plan_diff"; then
+    echo "ok           mutants-plan: diff plan outputs compact JSON with touched package"
+else
+    echo "FAILED       mutants-plan: diff output '$plan_diff'"
+    failed=1
+fi
+reset
+plan_full="$(MUTANTS_TARGET_PER_SHARD=2 ./mk mutants-plan --mode full)"
+if python3 -c 'import json, sys; d = json.loads(sys.argv[1]); assert d["mode"]=="full" and d["mutants"]>=5 and d["shards"]>=3 and d["packages"]==["sample-bin","sample-lib"], d' "$plan_full"; then
+    echo "ok           mutants-plan: full plan computes multi-shard matrix JSON"
+else
+    echo "FAILED       mutants-plan: full output '$plan_full'"
+    failed=1
+fi
+
 printf '\nSee `AGENTS.md`.\n' >>README.md
 expect_fail local:docs_boundary "must not reference agent files" "human doc referencing AGENTS.md"
 
@@ -407,6 +520,8 @@ check "gitignore preserves existing line without trailing newline" grep -qx '/ta
 check "gitignore appends lcov.info on its own line" grep -qx 'lcov.info' "$legacy/.gitignore"
 check "seeded docs/DEBT.md strips template specifics" bash -c '! grep -Eq "sample-bin|@Adafede|COVERAGE_FAIL_UNDER_LINES" "$1/docs/DEBT.md"' _ "$legacy"
 check "seeded AGENTS.md strips template specifics" bash -c '! grep -Eq "sample-lib|sample-bin|gate_selftest\.sh|\.agents/PLAYBOOK\.md" "$1/AGENTS.md"' _ "$legacy"
+check "seeded .cargo/mutants.toml enables gitignore and cap_lints" bash -c 'grep -q "^gitignore = true" "$1/.cargo/mutants.toml" && grep -q "^cap_lints = true" "$1/.cargo/mutants.toml"' _ "$legacy"
+check "seeded Cargo.toml sets dev/test dependency debug=false" bash -c 'grep -q "^\[profile\.dev\.package\." "$1/Cargo.toml" && grep -q "^\[profile\.test\.package\." "$1/Cargo.toml"' _ "$legacy"
 check "adopted workspace passes tombi" bash -c 'cd "$1" && ./mk tombi' _ "$legacy"
 before="$(fingerprint "$legacy")"
 check "second apply succeeds" adopt 0 "$legacy"
@@ -452,6 +567,14 @@ echo '//! Wasm.' >"$wasm_repo/src/lib.rs"
 check "wasm crate: apply with ADOPT_MUTANTS=0 succeeds" bash -c 'DRY_RUN=0 ADOPT_MUTANTS=0 "$2/scripts/adopt.sh" "$1"' _ "$wasm_repo" "$SRC"
 check "wasm crate: respects ADOPT_MUTANTS=0" test ! -e "$wasm_repo/.cargo/mutants.toml"
 check "wasm crate: keeps existing rust-toolchain.toml with wasm32" grep -q 'wasm32-unknown-unknown' "$wasm_repo/rust-toolchain.toml"
+
+bin_repo="$OUTSIDE/bin-only"
+mkdir -p "$bin_repo/src"
+printf '[package]\nname = "bin-only"\nversion = "0.1.0"\nedition = "2024"\nlicense = "MIT"\n' >"$bin_repo/Cargo.toml"
+printf 'fn main() {}\n#[test] fn ok() {}\n' >"$bin_repo/src/main.rs"
+(cd "$bin_repo" && cargo generate-lockfile --offline --quiet)
+check "binary-only crate: adopt succeeds" adopt 0 "$bin_repo"
+check "binary-only crate: ./mk test skips doctests cleanly" bash -c 'cd "$1" && ./mk test' _ "$bin_repo"
 
 [ "$failed" = 0 ] || { echo "selftest: some gates cannot fail as they should" >&2; exit 1; }
 echo "==> every gate failed on its injected violation"

@@ -14,21 +14,37 @@
 | `crates/sample-lib` | Sample library exercising workspace lints, doctests, README sync | `sample_lib::add` |
 | `crates/sample-bin` | Sample CLI binary exercising integration tests and `#[expect]` exceptions | `main` |
 
-## Commands (Cheapest First)
+## Commands (Cheapest First Verification Ladder)
+
+1. **Edit loop**:
+   - `./mk check -p <crate>` (or `./mk check-changed`) — fast `fmt`, `tombi`, `typos`, `clippy` scoped to touched crate(s).
+   - `./mk test-fast -p <crate> -E 'test(name)'` (or `./mk test-changed`) — targeted `cargo-nextest` without doctests.
+2. **Mutant-killing loop**:
+   - `./mk mutants-diff -f <file>` — mutate only touched files in diff.
+   - `./mk mutants-diff --iterate` — re-test only remaining survivors while writing tests.
+3. **Pre-push**:
+   - `./mk ci-fast` — local pre-push gate (omits `mutants-diff` & network `audit`; change-aware).
+4. **Final sign-off (run once)**:
+   - `./mk ci` — full blocking PR gate suite including full non-iterated `mutants-diff`.
 
 ```bash
 ./mk help                      # Show tiers, gate descriptions, and task aliases
 ./mk setup [ci|nightly|all]    # Install pinned toolchains and tools (needs cargo-binstall)
-./mk check                     # Fast inner loop: fmt, tombi, typos, clippy
+./mk check [-p <crate>]        # Fast inner loop: fmt, tombi, typos, clippy
+./mk check-changed             # Inner loop scoped to affected packages + dependents
 ./mk fix                       # Auto-fix formatting, TOML, typos, and clippy
-./mk test-fast                 # Unit + integration tests (nextest / cargo test, no doctests)
-./mk test-fast -E 'test(name)' # Single targeted test via nextest (or `-- name` with cargo test)
-./mk test                      # Full test suite including doctests and README examples
+./mk test-fast [-p <crate>]    # Unit + integration tests (nextest / cargo test, no doctests)
+./mk test-changed              # Unit + integration tests scoped to affected packages
+./mk test                      # Full test suite (cargo-nextest + doctests + README examples)
 ./mk watch                     # Continuous feedback via bacon / cargo-watch
-./mk mutants-diff              # Mutation testing on branch/untracked diff against base
+./mk mutants-diff              # Mutation testing on touched crates in branch diff
+./mk mutants-affected [base]   # Mutation testing on affected packages + reverse-dependents
+./mk mutants-plan              # Single-line JSON mutant/shard plan (--mode diff|affected|full)
 ./mk ci-fast                   # Local pre-push gate (omits mutants-diff & network audit; change-aware)
+./mk ci-core                   # Blocking PR checks excluding mutants-diff (used by CI job)
 ./mk ci                        # Full blocking PR gate suite (must pass before finishing)
-./mk ci-nightly                # Nightly gates: mutants, coverage (cov), powerset (hack), miri, outdated
+./mk ci-nightly-checks         # Nightly non-mutation sweeps (coverage, powerset, miri, outdated)
+./mk ci-nightly                # Full nightly gates including workspace mutants
 ./mk selftest                  # Template-only: prove every gate fails on an injected violation
 ```
 

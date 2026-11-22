@@ -6,7 +6,7 @@
 > A strict, zero-drift quality-hygiene template and migration framework for Rust repositories.
 
 - **One entrypoint.** `./mk <task>` runs every gate; CI calls the same tasks, so local and CI cannot disagree.
-- **Fast inner loop.** `./mk check`, `./mk fix`, `./mk test-fast`, and `./mk watch` give quick local feedback before running `./mk ci`.
+- **Fast inner loop.** `./mk check` (supports `-p <crate>`), `./mk check-changed`, `./mk fix`, `./mk test-fast`, `./mk test-changed`, `./mk mutants-diff --iterate`, and `./mk watch` give quick local feedback before running `./mk ci`.
 - **Every gate blocks.** A gate skips only when it cannot apply, and says why. A missing tool, or one at another version than [`mk.versions`](./mk.versions), fails.
 - **Every gate is proven.** `./mk selftest` injects one violation per gate and checks that the gate fails because of it.
 
@@ -15,11 +15,13 @@
 **New repository:** "Use this template" on GitHub, replace the sample crates in `crates/`, then:
 
 ```bash
-./mk setup       # pinned toolchains and tools (needs cargo-binstall)
-./mk check       # fast inner loop: fmt + tombi + typos + clippy
-./mk test-fast   # unit + integration tests (no doctests)
-./mk ci-fast     # local pre-push gate (change-aware; skips mutants-diff & network audit)
-./mk ci          # full blocking PR gate suite
+./mk setup         # pinned toolchains and tools (needs cargo-binstall)
+./mk check         # fast inner loop: fmt + tombi + typos + clippy (supports -p <crate>)
+./mk check-changed # inner loop scoped to changed packages + reverse-dependents
+./mk test-fast     # unit + integration tests (no doctests; supports -p <crate>)
+./mk test-changed  # unit + integration tests scoped to affected packages
+./mk ci-fast       # local pre-push gate (change-aware; skips mutants-diff & network audit)
+./mk ci            # full blocking PR gate suite
 ```
 
 **Existing repository** (workspace or single crate):
@@ -35,11 +37,14 @@ Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.ver
 
 | Task | Tier | Tool | Policy |
 |---|---|---|---|
-| `./mk check` | Inner loop | rustfmt, tombi, typos, clippy | Fast pre-test verification (<10s) |
+| `./mk check` | Inner loop | rustfmt, tombi, typos, clippy | Fast pre-test verification (<10s; supports `-p <crate>`) |
+| `./mk check-changed` | Inner loop | rustfmt, tombi, typos, clippy | Same checks with `clippy` scoped to affected packages |
 | `./mk fix` | Inner loop | rustfmt, tombi, typos, clippy `--fix` | Deterministic auto-remediation |
-| `./mk test-fast` | Inner loop | cargo-nextest / cargo test | Unit + integration tests (no doctests) |
+| `./mk test-fast` | Inner loop | cargo-nextest / cargo test | Unit + integration tests (no doctests; supports `-p <crate>`) |
+| `./mk test-changed` | Inner loop | cargo-nextest / cargo test | Unit + integration tests scoped to affected packages |
 | `./mk watch` | Inner loop | bacon / cargo-watch | Continuous background feedback |
 | `./mk ci-fast` | Pre-push (`prek`) | All blocking gates except `mutants-diff` & `audit` | Fast local pre-push verification (skips Rust compilation gates when a diff touches only standalone docs or workflow/tool configs) |
+| `./mk ci-core` | Blocking CI job (`ci.yml`) | All blocking gates except `mutants-diff` | Runs in parallel with `mutants-plan` before sharded `mutants-diff` |
 | `tools` | Blocking (`./mk ci`) | `mk.versions` | Exact pinned tool version verification |
 | `actions` | Blocking (`./mk ci`) | zizmor | SHA-pinned Actions & workflow security audit |
 | `shell` | Blocking (`./mk ci`) | shellcheck | Shell script lint (`--severity=style`) |
@@ -50,19 +55,22 @@ Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.ver
 | `typos` | Blocking (`./mk ci`) | typos-cli | Source & documentation spell check |
 | `lint` | Blocking (`./mk ci`) | clippy `-D warnings` | Workspace pedantic/nursery/restriction + rustc lints |
 | `lints-inherit` | Blocking (`./mk ci`) | `./mk` | Every crate inherits `[workspace.lints]` |
-| `test` | Blocking (`./mk ci`) | cargo test | Unit, integration, doctests, and README examples |
+| `test` | Blocking (`./mk ci`) | cargo-nextest + `cargo test --doc` | Unit, integration, doctests, and README examples |
 | `doc` | Blocking (`./mk ci`) | rustdoc `-D warnings` | Intra-doc links, private items, rustdoc lints |
 | `deny` | Blocking (`./mk ci`) | cargo-deny | Licenses, advisories, duplicate crate versions, sources |
 | `audit` | Blocking (`./mk ci`) | cargo-audit | RustSec vulnerability & unmaintained crate check |
 | `machete` (`unused-deps`) | Blocking (`./mk ci`) | cargo-machete | Unused dependency detection |
-| `msrv` | Blocking (`./mk ci`) | `cargo +<msrv> check` | Verified build on declared `rust-version` |
+| `msrv` | Blocking (`./mk ci`) | `cargo +<msrv> check` | Verified build on declared `rust-version` (skips inside tiers when `lint` passed on identical `rustc`) |
 | `echoes` (`duplication`, `dup`) | Blocking (`./mk ci`) | cargo-echoes | 0 exact duplicates; approximate & dependency reuse ratcheted |
 | `refquiem` (`stale-refs`) | Blocking (`./mk ci`) | cargo-refquiem | No stale mentions of deleted or signature-changed items |
 | `semver` | Blocking (`./mk ci`) | cargo-semver-checks | No breaking API changes since last `v*` tag (1.0+ libs) |
 | `wasm` | Blocking (`./mk ci`) | `cargo check --target wasm32-unknown-unknown` | Verified when `wasm32` target is declared |
-| `mutants-diff` | Blocking (`./mk ci`) | cargo-mutants `--in-diff` | 0 surviving mutants in Rust code changed on the branch |
+| `mutants-diff` | Blocking (`./mk ci`) | cargo-mutants `--in-diff` | 0 surviving mutants in touched packages in mutation scope |
+| `mutants-affected` | Nightly Mon–Sat | cargo-mutants | Mutation testing on changed packages and reverse-dependents |
+| `mutants-plan` | CI / Nightly planner | `./mk` + `cargo mutants --list` | Emits single-line JSON `{mode,mutants,shards,packages}` for CI matrices |
+| `ci-nightly-checks` | Nightly CI job | coverage, powerset, miri, outdated | Runs nightly sweeps in parallel with `mutants-plan` |
 | `mutants` | Nightly (`./mk ci-nightly`) | cargo-mutants | Bounded full-workspace mutation testing |
-| `coverage` (`cov`) | Nightly (`./mk ci-nightly`) | cargo-llvm-cov | Line coverage ≥ `COVERAGE_FAIL_UNDER_LINES` |
+| `coverage` (`cov`) | Nightly (`./mk ci-nightly`) | `cargo llvm-cov nextest` | Line coverage ≥ `COVERAGE_FAIL_UNDER_LINES` |
 | `powerset` (`feature-powerset`, `hack`) | Nightly (`./mk ci-nightly`) | cargo-hack | `--feature-powerset --no-dev-deps check` |
 | `miri` | Nightly (`./mk ci-nightly`) | cargo miri | Undefined behavior detection in tests |
 | `outdated` | Nightly (`./mk ci-nightly`) | cargo-outdated | Root dependency freshness |
@@ -99,6 +107,7 @@ When adopting `rusti-graben` in an existing codebase, **never weaken a gate glob
 - [`docs/GATES.md`](./docs/GATES.md) — Gate reference and selftest matrix
 - [`docs/DEBT.md`](./docs/DEBT.md) — Technical debt and exception ledger
 - [`docs/adr/0001-inner-loop-and-ratchets.md`](./docs/adr/0001-inner-loop-and-ratchets.md) — Architecture decision record for inner-loop tasks and ratchets
+- [`docs/adr/0002-scalable-mutation-and-ci.md`](./docs/adr/0002-scalable-mutation-and-ci.md) — Architecture decision record for scalable mutation testing and sharded CI
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`SECURITY.md`](./SECURITY.md), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
 
 ## License

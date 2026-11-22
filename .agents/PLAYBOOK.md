@@ -6,12 +6,11 @@ Dense operational reference for coding agents working inside the `rusti-graben` 
 
 Run the cheapest check that proves your change before running full suites:
 
-1. `./mk check` — static + lint loop (`fmt`, `tombi`, `typos`, `lint`).
-2. `./mk test-fast -E 'test(<name>)'` — single test via `nextest` (or `-- <name>` via `cargo test`), then `./mk test-fast`.
-3. `./mk mutants-diff` — mutation check on changed/untracked `.rs` files relative to base branch.
-4. `./mk ci-fast` — local pre-push gate (omits `mutants-diff` and network `audit`; change-aware).
-5. `./mk ci` — full blocking PR gate suite (`19` active checks + `3` conditional skips on this workspace).
-6. `./mk selftest` — mandatory whenever editing `mk`, `mk.versions`, `mk.local`, `scripts/adopt.sh`, or `tests/gate_selftest.sh`.
+1. **Edit loop**: `./mk check -p <crate>` / `./mk check-changed` (`fmt`, `tombi`, `typos`, `lint`), then `./mk test-fast -p <crate> -E 'test(<name>)'` / `./mk test-changed`.
+2. **Mutant-killing loop**: `./mk mutants-diff -f <file>`, then iterate with `./mk mutants-diff --iterate` until every mutant is caught.
+3. **Pre-push**: `./mk ci-fast` — local pre-push gate (omits `mutants-diff` and network `audit`; change-aware).
+4. **Final sign-off (run once)**: `./mk ci` — full blocking PR gate suite including full non-iterated `mutants-diff` (`msrv` skips cleanly inside tiers when `lint` already passed on matching `rustc`).
+5. `./mk selftest` — mandatory whenever editing `mk`, `mk.versions`, `mk.local`, `scripts/adopt.sh`, or `tests/gate_selftest.sh`.
 
 Always set `NO_COLOR=1` (or `CI=1`) when reading output programmatically.
 

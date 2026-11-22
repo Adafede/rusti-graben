@@ -140,9 +140,18 @@ if grep -q "own license (scripts/adopt.sh replaces it)" "$deny_src" 2>/dev/null;
     fi
 fi
 
+strip_trailing_blanks() { awk 'NF{last=NR} {lines[NR]=$0} END{for(i=1;i<=last;i++) print lines[i]}'; }
+add_debug_profiles() {
+    [ -s Cargo.toml ] && [ -n "$(tail -c1 Cargo.toml)" ] && printf '\n' >>Cargo.toml
+    printf '\n[profile.dev.package."*"]\ndebug = false\n\n[profile.test.package."*"]\ndebug = false\n' >>Cargo.toml
+    if command -v tombi >/dev/null 2>&1; then
+        tombi format Cargo.toml >/dev/null 2>&1 || true
+    fi
+}
+
 echo "==> Lints"
-lint_block="$(awk '/^\[workspace\.lints\./{p=1} p' "$TEMPLATE_DIR/Cargo.toml")"
-rustdoc_block="$(awk '/^\[workspace\.lints\.rustdoc\]/{p=1} p' "$TEMPLATE_DIR/Cargo.toml")"
+lint_block="$(awk '/^\[workspace\.lints\./{p=1} /^\[/ && !/^\[workspace\.lints\./{p=0} p' "$TEMPLATE_DIR/Cargo.toml" | strip_trailing_blanks)"
+rustdoc_block="$(awk '/^\[workspace\.lints\.rustdoc\]/{p=1} /^\[/ && !/^\[workspace\.lints\.rustdoc\]/{p=0} p' "$TEMPLATE_DIR/Cargo.toml" | strip_trailing_blanks)"
 if grep -Eq '^\[(workspace\.)?lints\.' "$root"; then
     if ! grep -Eq '^\[(workspace\.)?lints\.rustdoc\]' "$root"; then
         if [ "$layout" = workspace ]; then
@@ -166,6 +175,9 @@ if [ "$layout" = workspace ]; then
             act "make ${manifest#"$TARGET_DIR"/} inherit workspace lints" sh -c 'printf "\n[lints]\nworkspace = true\n" >>"$1"' _ "$manifest"
         fi
     done < <(cargo metadata --no-deps --format-version 1 | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4)
+fi
+if ! grep -Eq '^\[profile\.(dev|test)' "$root"; then
+    act "add dev/test dependency debug=false profiles to Cargo.toml" add_debug_profiles
 fi
 
 echo "==> .gitignore"

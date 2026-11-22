@@ -44,8 +44,9 @@ replaces it with the standard one; any other custom `mk` makes it stop.
   Dependabot/Renovate configs, when missing;
 - keeps every file that already exists and prints its diff against the template;
 - allows the repository's own license in `deny.toml` (not the template's AGPL);
-- adds the template's lint tables when the repository has none, and makes every
-  workspace member inherit them;
+- adds the template's lint tables when the repository has none, makes every
+  workspace member inherit them, and adds `[profile.dev.package."*"]` /
+  `[profile.test.package."*"]` `debug = false` when no dev/test profile exists;
 - ignores the gate outputs (`lcov.info`, `mutants.out*/`) in `.gitignore`.
 
 It never copies the template's sample crates or its selftest.
