@@ -16,6 +16,6 @@
 ## Design Invariants
 
 1. **Zero drift between local and CI**: `.github/workflows/*.yml` and `prek.toml` never invoke `cargo`, `clippy`, or linters directly; they call `./mk <task>`.
-2. **Hard failure on tool drift**: `mk` verifies exact pinned versions from `mk.versions` before running any gate.
+2. **Hard failure on tool drift**: `mk` verifies exact pinned versions from `mk.versions` before running any gate. `./mk setup` caches pinned binaries per version under `MK_TOOLS_DIR` (default `$CARGO_HOME/mk-tools`) so checkouts with different `mk.versions` pins coexist without clobbering `$CARGO_HOME/bin` or being shadowed by system packages.
 3. **Bounded mutation testing**: `run_mutants` in `mk` caps concurrency, disables debuginfo/incremental caches, runs at `nice 19`, and monitors free memory and disk space with a watchdog.
 4. **Ratchets only tighten**: `./mk ratchet` compares `Cargo.toml` lint allows, `COVERAGE_FAIL_UNDER_LINES`, and `ECHOES_MAX_*` against the merge-base and rejects any loosening.

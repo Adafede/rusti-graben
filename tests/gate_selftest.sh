@@ -83,6 +83,55 @@ pub fn checksum(data: &[u8]) -> u64 {
 perl -pi -e 's/^TOMBI_VERSION=.*/TOMBI_VERSION="0.0.0"/' mk.versions
 expect_fail tools "0.0.0" "tool version differs from mk.versions"
 
+mkdir -p "$OUTSIDE/mk-tools/tombi/9.9.1/bin" "$OUTSIDE/mk-tools/tombi/9.9.2/bin" "$OUTSIDE/shadow-bin"
+for v in 9.9.1 9.9.2; do
+    cat >"$OUTSIDE/mk-tools/tombi/$v/bin/tombi" <<EOF
+#!/bin/sh
+if [ "\${1:-}" = "--version" ]; then echo "tombi $v"; exit 0; fi
+echo "selected-$v" >&2
+exit 1
+EOF
+    chmod +x "$OUTSIDE/mk-tools/tombi/$v/bin/tombi"
+done
+cat >"$OUTSIDE/shadow-bin/tombi" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = "--version" ]; then echo "tombi 9.9.9"; exit 0; fi
+echo "selected-9.9.9" >&2
+exit 1
+EOF
+chmod +x "$OUTSIDE/shadow-bin/tombi"
+
+perl -pi -e 's/^TOMBI_VERSION=.*/TOMBI_VERSION="9.9.1"/' mk.versions
+expect_fail_cmd "selected-9.9.1" "tombi: MK_TOOLS_DIR 9.9.1 wins over shadow PATH" \
+    env -u _MK_BASE_PATH MK_TOOLS_DIR="$OUTSIDE/mk-tools" PATH="$OUTSIDE/shadow-bin:$PATH" ./mk tombi
+
+perl -pi -e 's/^TOMBI_VERSION=.*/TOMBI_VERSION="9.9.2"/' mk.versions
+expect_fail_cmd "selected-9.9.2" "tombi: MK_TOOLS_DIR 9.9.2 coexists independently" \
+    env -u _MK_BASE_PATH MK_TOOLS_DIR="$OUTSIDE/mk-tools" PATH="$OUTSIDE/shadow-bin:$PATH" ./mk tombi
+
+perl -pi -e 's/^TOMBI_VERSION=.*/TOMBI_VERSION="9.9.3"/' mk.versions
+expect_fail_cmd "tombi 9.9.3 (mk.versions) is required" "tombi: uncached version does not fall back to wrong cached dir" \
+    env -u _MK_BASE_PATH MK_TOOLS_DIR="$OUTSIDE/mk-tools" PATH="$OUTSIDE/shadow-bin:$PATH" ./mk tombi
+
+mkdir -p "$OUTSIDE/mk-tools/cargo-machete/9.9.1/bin"
+cat >"$OUTSIDE/mk-tools/cargo-machete/9.9.1/bin/cargo-machete" <<'EOF'
+#!/bin/sh
+case "$*" in *--version*) echo "9.9.1"; exit 0 ;; esac
+echo "selected-machete-9.9.1" >&2
+exit 1
+EOF
+cat >"$OUTSIDE/shadow-bin/cargo-machete" <<'EOF'
+#!/bin/sh
+case "$*" in *--version*) echo "9.9.9"; exit 0 ;; esac
+echo "selected-machete-9.9.9" >&2
+exit 1
+EOF
+chmod +x "$OUTSIDE/mk-tools/cargo-machete/9.9.1/bin/cargo-machete" "$OUTSIDE/shadow-bin/cargo-machete"
+
+perl -pi -e 's/cargo-machete@[^ )]+/cargo-machete\@9.9.1/' mk.versions
+expect_fail_cmd "selected-machete-9.9.1" "machete: MK_TOOLS_DIR cargo subcommand wins over CARGO_HOME/bin and shadow PATH" \
+    env -u _MK_BASE_PATH MK_TOOLS_DIR="$OUTSIDE/mk-tools" PATH="$OUTSIDE/shadow-bin:$PATH" ./mk machete
+
 perl -pi -e 's/checkout@[0-9a-f]{40}/checkout\@v7/' .github/workflows/ci.yml
 expect_fail actions "unpinned" "action not pinned to a commit SHA"
 
