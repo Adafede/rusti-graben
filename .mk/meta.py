@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 import json
 import os
 import subprocess
@@ -52,19 +52,18 @@ def manifest_paths(meta: dict[str, Any]) -> list[str]:
 
 def has_lib_target(meta: dict[str, Any]) -> bool:
     """Return True if any workspace member defines a library or proc-macro target."""
-    for pkg in workspace_member_packages(meta):
-        for target in pkg.get("targets", []):
-            if LIB_TARGET_KINDS.intersection(target.get("kind", [])):
-                return True
-    return False
+    return any(
+        LIB_TARGET_KINDS.intersection(target.get("kind", []))
+        for pkg in workspace_member_packages(meta)
+        for target in pkg.get("targets", [])
+    )
 
 
 def first_msrv(meta: dict[str, Any]) -> str:
     """Return the first declared rust_version among workspace members, or empty string."""
     for pkg in workspace_member_packages(meta):
-        rust_version = pkg.get("rust_version")
-        if rust_version:
-            return str(rust_version)
+        if pkg.get("rust_version"):
+            return str(pkg["rust_version"])
     return ""
 
 
@@ -91,10 +90,13 @@ def has_publishable_package(meta: dict[str, Any]) -> bool:
 
 def _package_dirs(pkgs: list[dict[str, Any]]) -> list[tuple[int, str, str, str]]:
     """Return (dir_len, real_dir, id, name) tuples sorted deepest-first."""
-    entries: list[tuple[int, str, str, str]] = []
-    for pkg in pkgs:
-        pdir = os.path.dirname(os.path.realpath(pkg["manifest_path"]))
-        entries.append((len(pdir), pdir, pkg["id"], pkg["name"]))
+    entries = [
+        (len(os.path.dirname(os.path.realpath(pkg["manifest_path"]))),
+         os.path.dirname(os.path.realpath(pkg["manifest_path"])),
+         pkg["id"],
+         pkg["name"])
+        for pkg in pkgs
+    ]
     entries.sort(reverse=True)
     return entries
 
@@ -150,8 +152,7 @@ def _reverse_dep_graph(pkgs: list[dict[str, Any]]) -> dict[str, set[str]]:
         for dep in pkg.get("dependencies", []):
             dep_path = dep.get("path")
             if dep_path:
-                target_dir = os.path.realpath(dep_path)
-                candidates = dir_to_ids.get(target_dir, [])
+                candidates = dir_to_ids.get(os.path.realpath(dep_path), [])
             elif dep.get("source") is None:
                 candidates = name_to_ids.get(dep["name"], [])
             else:
@@ -203,8 +204,7 @@ def affected_packages(
         matched = _match_package_dir(abs_file, dirs)
         if matched is not None:
             pdir, pid, _ = matched
-            inside = os.path.relpath(abs_file, pdir)
-            if _is_package_trigger(rel, inside):
+            if _is_package_trigger(rel, os.path.relpath(abs_file, pdir)):
                 seeds.add(pid)
 
     rev_deps = _reverse_dep_graph(pkgs)
@@ -229,19 +229,13 @@ def compute_shards(mutants: int, target: int, max_shards: int) -> int:
         raise ValueError(f"max_shards must be positive, got {max_shards}")
     if mutants == 0:
         return 0
-    shards = (mutants + target - 1) // target
-    return min(max(shards, 1), max_shards)
+    return min(max((mutants + target - 1) // target, 1), max_shards)
 
 
 def format_plan_json(mode: str, mutants: int, shards: int, packages: list[str]) -> str:
     """Render compact single-line JSON for mutants-plan."""
     return json.dumps(
-        {
-            "mode": mode,
-            "mutants": mutants,
-            "shards": shards,
-            "packages": packages,
-        },
+        {"mode": mode, "mutants": mutants, "shards": shards, "packages": packages},
         separators=(",", ":"),
     )
 
@@ -250,14 +244,30 @@ def _load_cargo_metadata(locked: bool) -> dict[str, Any]:
     cmd = ["cargo", "metadata", "--no-deps", "--format-version", "1"]
     if locked:
         cmd.append("--locked")
-    raw = subprocess.check_output(cmd, text=True)
-    return json.loads(raw)
+    return json.loads(subprocess.check_output(cmd, text=True))
 
 
-def _pop_locked(args: list[str]) -> tuple[bool, list[str]]:
-    locked = "--locked" in args
-    rest = [arg for arg in args if arg != "--locked"]
-    return locked, rest
+def _print_lines(items: list[str]) -> int:
+    for item in items:
+        print(item)
+    return 0
+
+
+def _print_optional(value: str) -> int:
+    if value:
+        print(value)
+    return 0
+
+
+_META_HANDLERS: dict[str, Callable[[dict[str, Any]], int]] = {
+    "packages": lambda m: _print_lines(package_names(m)),
+    "manifests": lambda m: _print_lines(manifest_paths(m)),
+    "has-lib": lambda m: 0 if has_lib_target(m) else 1,
+    "msrv": lambda m: _print_optional(first_msrv(m)),
+    "license": lambda m: _print_optional(first_license(m)),
+    "has-stable-version": lambda m: 0 if has_stable_version(m) else 1,
+    "has-publishable": lambda m: 0 if has_publishable_package(m) else 1,
+}
 
 
 def main(argv: list[str]) -> int:
@@ -266,54 +276,23 @@ def main(argv: list[str]) -> int:
         print("usage: meta.py <subcommand> [args...]", file=sys.stderr)
         return 1
     cmd = argv[0]
-    locked, rest = _pop_locked(argv[1:])
+    locked = "--locked" in argv[1:]
+    rest = [arg for arg in argv[1:] if arg != "--locked"]
 
-    if cmd == "plan-json":
-        if len(rest) < 3:
-            print("usage: meta.py plan-json <mode> <mutants> <shards> [pkg...]", file=sys.stderr)
-            return 1
+    if cmd == "plan-json" and len(rest) >= 3:
         print(format_plan_json(rest[0], int(rest[1]), int(rest[2]), rest[3:]))
         return 0
-    if cmd == "shards":
-        if len(rest) != 3:
-            print("usage: meta.py shards <mutants> <target> <max_shards>", file=sys.stderr)
-            return 1
+    if cmd == "shards" and len(rest) == 3:
         print(compute_shards(int(rest[0]), int(rest[1]), int(rest[2])))
         return 0
 
     meta = _load_cargo_metadata(locked)
-    if cmd == "packages":
-        for name in package_names(meta):
-            print(name)
-        return 0
-    if cmd == "manifests":
-        for path in manifest_paths(meta):
-            print(path)
-        return 0
-    if cmd == "has-lib":
-        return 0 if has_lib_target(meta) else 1
-    if cmd == "msrv":
-        val = first_msrv(meta)
-        if val:
-            print(val)
-        return 0
-    if cmd == "license":
-        val = first_license(meta)
-        if val:
-            print(val)
-        return 0
-    if cmd == "has-stable-version":
-        return 0 if has_stable_version(meta) else 1
-    if cmd == "has-publishable":
-        return 0 if has_publishable_package(meta) else 1
+    if cmd in _META_HANDLERS and not rest:
+        return _META_HANDLERS[cmd](meta)
     if cmd == "changed" and len(rest) == 1:
-        for name in changed_rust_packages(meta, rest[0], sys.stdin):
-            print(name)
-        return 0
+        return _print_lines(changed_rust_packages(meta, rest[0], sys.stdin))
     if cmd == "affected" and len(rest) == 2:
-        for name in affected_packages(meta, rest[0], rest[1], sys.stdin):
-            print(name)
-        return 0
+        return _print_lines(affected_packages(meta, rest[0], rest[1], sys.stdin))
 
     print(f"unknown or malformed subcommand: {cmd}", file=sys.stderr)
     return 1

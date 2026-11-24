@@ -13,7 +13,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 2 — Pure Metadata, Graph & Shard Planner (`.mk/meta.py`, `tests/test_meta.py`)**: Extract all 4 inline Python heredocs and all `cargo metadata` JSON regexes into pure stdlib functions in `.mk/meta.py` with unit + seeded-DAG property tests in `tests/test_meta.py`; register template-only `local:runner_tests` in `mk.local`.
   - *Verify*: `python3 -m unittest discover -s tests -p 'test_*.py' -v && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert `.mk/meta.py`, `tests/test_meta.py`, and `mk`/`mk.local`/`scripts/adopt.sh` changes.
-- [ ] **Step 3 — Gate Catalog & Core Primitives (`.mk/catalog.sh`, `.mk/core.sh`)**: Extract declarative gate tables, alias normalization, help/list formatting, exit helpers, git diff helpers, `mk.local` key upserts, and docs-only diff classifier.
+- [x] **Step 3 — Gate Catalog & Core Primitives (`.mk/catalog.sh`, `.mk/core.sh`)**: Extract declarative gate tables, alias normalization, help/list formatting, exit helpers, git diff helpers, `mk.local` key upserts, and docs-only diff classifier.
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring catalog/core functions into `mk`.
 - [ ] **Step 4 — Pinned Tool Isolation & Unified Installer (`.mk/tools.sh`)**: Extract version spec parsing, `MK_TOOLS_DIR` `PATH` isolation, `$CARGO_HOME/bin` seeding, and unify `install_tombi` + `install_shellcheck` via `install_github_tarball`.

@@ -33,3 +33,10 @@
 - **Files updated**: [mk](file:///Users/adrutz/Git/rusti-graben/mk), [mk.local](file:///Users/adrutz/Git/rusti-graben/mk.local), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh), [tests/gate_selftest.sh](file:///Users/adrutz/Git/rusti-graben/tests/gate_selftest.sh).
 - **Structural impact**: Eliminated all 4 inline `python3 -c` heredocs and all 6 `cargo metadata` JSON regex parsers in `mk` (1,488 → ~1,330 LOC); added unit tests + 50-trial seeded DAG property test via `local:runner_tests`.
 - **Verification**: `python3 -m unittest discover -s tests -p 'test_*.py' -v`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.
+
+## Step 3 — Extract Gate Catalog & Core Primitives
+
+- **Files added**: [.mk/catalog.sh](file:///Users/adrutz/Git/rusti-graben/.mk/catalog.sh), [.mk/core.sh](file:///Users/adrutz/Git/rusti-graben/.mk/core.sh).
+- **Files updated**: [.mk/meta.py](file:///Users/adrutz/Git/rusti-graben/.mk/meta.py) (compacted `main()` dispatch under 300 LOC), [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
+- **Structural impact**: Moved gate registry, aliases, help/listing, exit helpers, git diff queries, `upsert_kv_line`, docs-only diff classifier, and metadata shell facade into Layer 0 modules.
+- **Verification**: `NO_COLOR=1 ./mk shell`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.
