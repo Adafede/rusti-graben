@@ -58,6 +58,9 @@ test_spec_and_alias_helpers() {
         unit_assert_eq "spec_tool plain" "cargo-deny" "$(spec_tool 'cargo-deny@0.21.0')"
         unit_assert_eq "tool_bin typos-cli" "typos" "$(tool_bin typos-cli)"
         unit_assert_eq "tool_bin echoes" "cargo-echoes" "$(tool_bin echoes)"
+        unit_assert_eq "tool_bin zizmor" "zizmor" "$(tool_bin zizmor)"
+        unit_assert_eq "tool_bin cargo-deny" "cargo-deny" "$(tool_bin cargo-deny)"
+        unit_assert_eq "SKIP_RC" "78" "$SKIP_RC"
         unit_assert_eq "normalize_cmd_alias toml" "tombi" "$(normalize_cmd_alias toml)"
         unit_assert_eq "normalize_cmd_alias hack" "powerset" "$(normalize_cmd_alias hack)"
         unit_assert_eq "normalize_cmd_alias cov" "coverage" "$(normalize_cmd_alias cov)"
@@ -82,6 +85,8 @@ test_budget_and_kv_helpers() {
         unit_assert_contains "upsert replaces existing key" 'COVERAGE_FAIL_UNDER_LINES="95"' "$(cat "$kv_file")"
         upsert_kv_line "$kv_file" ECHOES_MAX_REUSE '0'
         unit_assert_contains "upsert appends new key" 'ECHOES_MAX_REUSE=0' "$(cat "$kv_file")"
+        unit_assert_eq "echoes_metric extracts count" "4" \
+            "$(echoes_metric "0 duplicated groups, 4 approximate groups, 2 dependency reuse" "approximate groups")"
     )
 }
 
@@ -92,7 +97,7 @@ test_cli_surface() {
         unit_assert_contains "help contains $token" "$token" "$help_out"
     done
     list_out="$(unit_run_in_dir "$root" env NO_COLOR=1 ./mk --list)"
-    for token in actions audit bench check check-changed ci ci-core ci-fast ci-nightly ci-nightly-checks ci-release commits cov coverage coverage-baseline deny doc dup duplication echoes echoes-baseline feature-powerset fix fmt hack help lint lints-inherit machete miri msrv mutants mutants-affected mutants-diff mutants-plan outdated powerset ratchet refquiem selftest semver setup shell stale-refs test test-changed test-fast tombi toml tools typos udeps unused-deps wasm watch local:docs_boundary; do
+    for token in actions audit bench check check-changed ci ci-core ci-fast ci-nightly ci-nightly-checks ci-release commits cov coverage coverage-baseline deny doc dup duplication echoes echoes-baseline feature-powerset fix fmt hack help lint lints-inherit machete miri msrv mutants mutants-affected mutants-diff mutants-plan outdated powerset ratchet refquiem selftest semver setup shell stale-refs test test-changed test-fast tombi toml tools typos udeps unused-deps wasm watch local:docs_boundary local:runner_tests; do
         unit_assert_contains "--list contains $token" "$token" "$list_out"
     done
     unit_assert_fails_with "unknown task prints usage" "Usage: ./mk {" unit_run_in_dir "$root" env NO_COLOR=1 ./mk unknown-task-xyz

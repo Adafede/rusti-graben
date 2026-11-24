@@ -211,5 +211,3 @@ run_mutants() {
     set +m
     mutants_exec_watchdog "$pid"
 }
-
-cmd_mutants() { run_mutants "$@"; }

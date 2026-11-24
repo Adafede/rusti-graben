@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Layer 3: Individual gate command handlers (inner-loop, hygiene, security,
-# supply-chain, ratchet, nightly, release, and fallback task dispatch).
+# supply-chain, and ratchet gates).
 
 run_for_affected_packages() {
     local subcmd="$1" empty_mode="$2" empty_msg="$3" base p
@@ -140,17 +140,17 @@ cmd_ratchet() {
     done
 }
 
+# shellcheck disable=SC2154  # CONVENTIONAL_COMMIT_RE from .mk/catalog.sh
 cmd_commits() {
-    local conv_re subject base bad=0
-    conv_re="$(conventional_regex)"
+    local subject base bad=0
     if [ $# -gt 0 ] && [ -f "$1" ]; then
         subject="$(grep -v '^#' "$1" | head -1 || true)"
-        grep -Eq "$conv_re" <<<"$subject" || die "not a conventional commit: $subject"
+        grep -Eq "$CONVENTIONAL_COMMIT_RE" <<<"$subject" || die "not a conventional commit: $subject"
         return 0
     fi
     base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
     while IFS= read -r subject; do
-        if ! grep -Eq "$conv_re" <<<"$subject"; then
+        if ! grep -Eq "$CONVENTIONAL_COMMIT_RE" <<<"$subject"; then
             echo "not a conventional commit: $subject"
             bad=1
         fi
@@ -190,7 +190,7 @@ cmd_lints_inherit() {
     while IFS= read -r manifest; do
         awk '/^\[lints\]/{s=1;next} /^\[/{s=0} s && /^workspace *= *true/{f=1} END{exit !f}' "$manifest" ||
             { echo "missing '[lints] workspace = true' in $manifest"; missing=1; }
-    done < <(workspace_manifests)
+    done < <(meta_py manifests --locked)
     [ "$missing" = 0 ]
 }
 
@@ -201,7 +201,7 @@ cmd_test() {
         nextest_args+=(--profile ci)
     fi
     cargo nextest run "${nextest_args[@]}" "$@"
-    if has_lib; then cargo test --workspace --doc --all-features --locked; fi
+    if meta_py has-lib --locked; then cargo test --workspace --doc --all-features --locked; fi
 }
 
 cmd_doc() { RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --document-private-items --locked; }
@@ -221,6 +221,10 @@ cmd_msrv() {
     cargo "+$v" check --workspace --all-targets --all-features --locked
 }
 
+echoes_metric() {
+    grep -oE "[0-9]+ $2" <<<"$1" | head -1 | cut -d' ' -f1
+}
+
 # shellcheck disable=SC2154  # ECHOES_MAX_* from mk/mk.local
 cmd_echoes() {
     need echoes
@@ -233,9 +237,9 @@ cmd_echoes() {
     out="$(cargo echoes --all-targets --config .echoes.toml --no-fail "$@" 2>&1)" || rc=$?
     printf '%s\n' "$out"
     [ "$rc" = 0 ] || die "echoes could not complete its analysis (exit $rc)"
-    exact="$(grep -oE '[0-9]+ duplicated groups' <<<"$out" | head -1 | cut -d' ' -f1)"
-    approximate="$(grep -oE '[0-9]+ approximate groups' <<<"$out" | head -1 | cut -d' ' -f1)"
-    reuse="$(grep -oE '[0-9]+ dependency reuse' <<<"$out" | head -1 | cut -d' ' -f1)"
+    exact="$(echoes_metric "$out" "duplicated groups")"
+    approximate="$(echoes_metric "$out" "approximate groups")"
+    reuse="$(echoes_metric "$out" "dependency reuse")"
     [ -n "$exact" ] && [ -n "$approximate" ] && [ -n "$reuse" ] || die "could not read the echoes summary"
     [ "$exact" = 0 ] || die "$exact exact duplicate group(s): delete all but one copy"
     [ "$approximate" -le "$ECHOES_MAX_APPROXIMATE" ] ||
@@ -250,8 +254,8 @@ cmd_echoes() {
 cmd_echoes_baseline() {
     local out approximate reuse kv
     out="$(MK_NESTED=0 "$0" echoes 2>&1 || true)"
-    approximate="$(grep -oE '[0-9]+ approximate groups' <<<"$out" | head -1 | cut -d' ' -f1)"
-    reuse="$(grep -oE '[0-9]+ dependency reuse' <<<"$out" | head -1 | cut -d' ' -f1)"
+    approximate="$(echoes_metric "$out" "approximate groups")"
+    reuse="$(echoes_metric "$out" "dependency reuse")"
     [ -n "$approximate" ] && [ -n "$reuse" ] || die "could not read the echoes summary"
     for kv in "ECHOES_MAX_APPROXIMATE=$approximate" "ECHOES_MAX_REUSE=$reuse"; do
         upsert_kv_line mk.local "${kv%%=*}" "${kv#*=}"
@@ -282,8 +286,8 @@ cmd_refquiem() {
 
 cmd_semver() {
     need cargo-semver-checks
-    has_lib || skip "no library target"
-    has_stable_version || skip "every crate is pre-1.0 (in development), so breaking changes are allowed"
+    meta_py has-lib --locked || skip "no library target"
+    meta_py has-stable-version --locked || skip "every crate is pre-1.0 (in development), so breaking changes are allowed"
     local base
     base="$(git tag --merged HEAD --no-contains HEAD --list 'v*' --sort=-v:refname | head -1)"
     [ -n "$base" ] || skip "no earlier v* release tag to compare against"

@@ -42,7 +42,7 @@ cmd_outdated() { need cargo-outdated; cargo outdated --workspace --root-deps-onl
 
 cmd_ci_release() {
     "$0" ci
-    if has_publishable; then
+    if meta_py has-publishable --locked; then
         cargo publish --workspace --dry-run --locked
     else
         echo "[skip] publish: every crate sets publish = false"

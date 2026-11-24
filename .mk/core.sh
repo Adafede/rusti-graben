@@ -1,21 +1,27 @@
 # shellcheck shell=bash
 # Layer 0: Foundational exit helpers, git diff queries, config upserts,
-# docs-only diff classifier, and .mk/meta.py shell facade.
+# docs-only diff classifier, and .mk/meta.py runner.
 
 die() {
     echo "ERROR: $*" >&2
     exit 1
 }
 
-# Not applicable here: exit 0 when run directly, skip_rc when run by a tier.
+# Not applicable here: exit 0 when run directly, SKIP_RC when run by a tier.
+# shellcheck disable=SC2154  # SKIP_RC from .mk/catalog.sh
 skip() {
     echo "[skip] ${cmd:-mk}: $*"
-    if [ "${MK_NESTED:-0}" = 1 ]; then exit "$(skip_rc)"; fi
+    if [ "${MK_NESTED:-0}" = 1 ]; then exit "$SKIP_RC"; fi
     exit 0
 }
 
 require_python3() {
     command -v python3 >/dev/null || die "python3 is required"
+}
+
+meta_py() {
+    require_python3
+    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" "$@"
 }
 
 has_pkg_flag() {
@@ -49,11 +55,6 @@ upsert_kv_line() {
     append_line_with_newline "$file" "${key}=${raw_rhs}"
 }
 
-has_lib() {
-    require_python3
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" has-lib --locked
-}
-
 # Declared outside comments (the template's toolchain file mentions it in one).
 has_wasm() {
     grep -Eq '^[^#]*wasm32' rust-toolchain.toml Cargo.toml 2>/dev/null
@@ -63,7 +64,7 @@ msrv() {
     local v
     v="$(sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)"
     if [ -z "$v" ] && command -v python3 >/dev/null; then
-        v="$(python3 -B "${ROOT_DIR:-.}/.mk/meta.py" msrv 2>/dev/null || true)"
+        v="$(meta_py msrv 2>/dev/null || true)"
     fi
     printf '%s\n' "$v"
 }
@@ -99,38 +100,16 @@ write_rust_diff() {
     done < <(git ls-files --others --exclude-standard -- '*.rs')
 }
 
-workspace_packages() {
-    require_python3
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" packages
-}
-
-workspace_manifests() {
-    require_python3
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" manifests --locked
-}
-
 changed_rust_packages() {
     local base="$1" git_root
-    require_python3
     git_root="$(git rev-parse --show-toplevel)"
-    git_changed_files "$base" -- '*.rs' | python3 -B "${ROOT_DIR:-.}/.mk/meta.py" changed "$git_root"
+    git_changed_files "$base" -- '*.rs' | meta_py changed "$git_root"
 }
 
 affected_packages() {
     local base="$1" git_root
-    require_python3
     git_root="$(git rev-parse --show-toplevel)"
-    git_changed_files "$base" | python3 -B "${ROOT_DIR:-.}/.mk/meta.py" affected "$git_root" "${ROOT_DIR:-.}"
-}
-
-has_stable_version() {
-    require_python3
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" has-stable-version --locked
-}
-
-has_publishable() {
-    require_python3
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" has-publishable --locked
+    git_changed_files "$base" | meta_py affected "$git_root" "${ROOT_DIR:-.}"
 }
 
 # True when a non-empty diff against base_ref touches only documentation, workflow,

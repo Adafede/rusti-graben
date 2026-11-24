@@ -1,5 +1,5 @@
 # Repository-specific settings for ./mk. Sourced by ./mk after mk.versions.
-# Everything here belongs to this repository; mk and mk.versions are standard
+# Everything here belongs to this repository; mk, mk.versions, and .mk/* are standard
 # and kept in sync by the template's scripts/adopt.sh.
 #
 # LOCAL_CI_GATES=(task ...)       cargo-make tasks added to ./mk ci (shown as local:task)
@@ -18,7 +18,7 @@
 #
 # Any ./mk task name the standard runner does not know runs that cargo-make task.
 
-# ECHOES_MAX_APPROXIMATE=n / ECHOES_MAX_REUSE=n  legacy echoes counts (./mk echoes-baseline);
+# ECHOES_MAX_APPROXIMATE=n / ECHOES_MAX_REUSE=n  ratcheted echoes counts (./mk echoes-baseline);
 #                                 only go down (./mk ratchet); exact duplicates are always 0
 #
 # Ratchet: may only go up (./mk ratchet). Set with ./mk coverage-baseline.

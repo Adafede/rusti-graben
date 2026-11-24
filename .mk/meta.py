@@ -76,14 +76,16 @@ def has_publishable_package(meta: dict[str, Any]) -> bool:
     return any(pkg.get("publish") is None for pkg in workspace_member_packages(meta))
 
 
+def _pkg_dir(pkg: dict[str, Any]) -> str:
+    return os.path.dirname(os.path.realpath(pkg["manifest_path"]))
+
+
 def _package_dirs(pkgs: list[dict[str, Any]]) -> list[tuple[int, str, str, str]]:
     """Return (dir_len, real_dir, id, name) tuples sorted deepest-first."""
     entries = [
-        (len(os.path.dirname(os.path.realpath(pkg["manifest_path"]))),
-         os.path.dirname(os.path.realpath(pkg["manifest_path"])),
-         pkg["id"],
-         pkg["name"])
+        (len(pdir), pdir, pkg["id"], pkg["name"])
         for pkg in pkgs
+        for pdir in (_pkg_dir(pkg),)
     ]
     entries.sort(reverse=True)
     return entries
@@ -121,7 +123,7 @@ def _reverse_dep_graph(pkgs: list[dict[str, Any]]) -> dict[str, set[str]]:
     dir_to_ids: dict[str, list[str]] = {}
     name_to_ids: dict[str, list[str]] = {}
     for pkg in pkgs:
-        pdir = os.path.dirname(os.path.realpath(pkg["manifest_path"]))
+        pdir = _pkg_dir(pkg)
         dir_to_ids.setdefault(pdir, []).append(pkg["id"])
         name_to_ids.setdefault(pkg["name"], []).append(pkg["id"])
 
@@ -253,12 +255,16 @@ def main(argv: list[str]) -> int:
     locked = "--locked" in argv[1:]
     rest = [arg for arg in argv[1:] if arg != "--locked"]
 
-    if cmd == "plan-json" and len(rest) >= 3:
-        print(format_plan_json(rest[0], int(rest[1]), int(rest[2]), rest[3:]))
-        return 0
-    if cmd == "shards" and len(rest) == 3:
-        print(compute_shards(int(rest[0]), int(rest[1]), int(rest[2])))
-        return 0
+    try:
+        if cmd == "plan-json" and len(rest) >= 3:
+            print(format_plan_json(rest[0], int(rest[1]), int(rest[2]), rest[3:]))
+            return 0
+        if cmd == "shards" and len(rest) == 3:
+            print(compute_shards(int(rest[0]), int(rest[1]), int(rest[2])))
+            return 0
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
     meta = _load_cargo_metadata(locked)
     if cmd in _META_HANDLERS and not rest:

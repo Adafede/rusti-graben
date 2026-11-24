@@ -29,7 +29,7 @@ scoped_packages_for_mutants() {
     case "$mode" in
         changed) changed_rust_packages "$base" | intersect_mutants_scope ;;
         affected) affected_packages "$base" | intersect_mutants_scope ;;
-        full) workspace_packages | intersect_mutants_scope ;;
+        full) meta_py packages | intersect_mutants_scope ;;
         *) die "unknown scope mode '$mode'" ;;
     esac
 }
@@ -86,10 +86,6 @@ mutants_plan_parse_args() {
     esac
 }
 
-mutants_plan_emit_zero() {
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" plan-json "$1" 0 0
-}
-
 mutants_plan_emit_nonzero() {
     local mode="$1" mutants="$2"
     shift 2
@@ -101,27 +97,27 @@ mutants_plan_emit_nonzero() {
     fi
     [[ "$target" =~ ^[1-9][0-9]*$ ]] || die "MUTANTS_TARGET_PER_SHARD must be a positive integer, got '$target'"
     [[ "$max_shards" =~ ^[1-9][0-9]*$ ]] || die "MUTANTS_MAX_SHARDS must be a positive integer, got '$max_shards'"
-    shards="$(python3 -B "${ROOT_DIR:-.}/.mk/meta.py" shards "$mutants" "$target" "$max_shards")"
-    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" plan-json "$mode" "$mutants" "$shards" "$@"
+    shards="$(meta_py shards "$mutants" "$target" "$max_shards")"
+    meta_py plan-json "$mode" "$mutants" "$shards" "$@"
 }
 
 cmd_mutants_plan() {
-    need cargo-mutants; require_python3; mutants_plan_parse_args "$@"
+    need cargo-mutants; mutants_plan_parse_args "$@"
     local mode="$_MK_PLAN_MODE" base="$_MK_PLAN_BASE" scope_mode="$_MK_PLAN_MODE" p
     if [ "$mode" = diff ] || [ "$mode" = affected ]; then
         if [ "$_MK_PLAN_HAS_BASE" = 1 ]; then
             git rev-parse -q --verify "$base^{commit}" >/dev/null || die "unknown base ref '$base'"
-        elif ! base="$(base_ref)"; then mutants_plan_emit_zero "$mode"; return 0; fi
+        elif ! base="$(base_ref)"; then meta_py plan-json "$mode" 0 0; return 0; fi
     fi
     if [ "$mode" = diff ]; then scope_mode="changed"; fi
     local -a scoped=()
     while IFS= read -r p; do [ -n "$p" ] && scoped+=("$p"); done < <(scoped_packages_for_mutants "$scope_mode" "$base")
-    if [ "${#scoped[@]}" -eq 0 ]; then mutants_plan_emit_zero "$mode"; return 0; fi
+    if [ "${#scoped[@]}" -eq 0 ]; then meta_py plan-json "$mode" 0 0; return 0; fi
     local -a list_cmd=(cargo mutants --list "${scoped[@]/#/--package=}" --all-features)
     if [ "$mode" = diff ]; then
         _MK_DIFF_TMP="$(mktemp)"; trap 'cleanup_diff_tmp' EXIT
         write_rust_diff "$base" "$_MK_DIFF_TMP"
-        if [ ! -s "$_MK_DIFF_TMP" ]; then mutants_plan_emit_zero "$mode"; return 0; fi
+        if [ ! -s "$_MK_DIFF_TMP" ]; then meta_py plan-json "$mode" 0 0; return 0; fi
         list_cmd+=(--in-diff "$_MK_DIFF_TMP")
     fi
     local mutants

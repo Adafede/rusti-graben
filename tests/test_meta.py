@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import random
@@ -208,6 +210,14 @@ class TestShardPlanner(unittest.TestCase):
         raw = mk_meta.format_plan_json("full", 5, 1, ["sample-bin", "sample-lib"])
         self.assertEqual(raw, '{"mode":"full","mutants":5,"shards":1,"packages":["sample-bin","sample-lib"]}')
         self.assertEqual(json.loads(raw)["mutants"], 5)
+
+    def test_main_shards_value_errors_return_1(self) -> None:
+        for args in (["shards", "-1", "10", "2"], ["shards", "bad", "10", "2"]):
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                rc = mk_meta.main(args)
+            self.assertEqual(rc, 1)
+            self.assertIn("ERROR:", stderr.getvalue())
 
 
 if __name__ == "__main__":

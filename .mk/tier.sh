@@ -36,10 +36,10 @@ dispatch_local_override() {
 
 # Runs every gate as its own process (so `set -e` holds inside each), keeps
 # going after a failure, then prints a ran/skipped/failed table.
+# shellcheck disable=SC2154  # SKIP_RC from .mk/catalog.sh
 run_tier() {
-    local tier="$1" gate rc start desc hint skip_rust=0 lint_passed=0 skip_code
+    local tier="$1" gate rc start desc hint skip_rust=0 lint_passed=0
     shift
-    skip_code="$(skip_rc)"
     if [ "$tier" = ci ] || [ "$tier" = ci-fast ] || [ "$tier" = ci-core ]; then
         if docs_or_meta_only_diff; then skip_rust=1; fi
     fi
@@ -61,7 +61,7 @@ run_tier() {
                 if [ "$gate" = lint ]; then lint_passed=1; fi
                 report+=("PASS  $gate ($((SECONDS - start))s)")
                 ;;
-            "$skip_code") report+=("SKIP  $gate") ;;
+            "$SKIP_RC") report+=("SKIP  $gate") ;;
             *)
                 hint="$(gate_hint "$gate")"
                 if [ -n "$hint" ]; then echo "hint ($gate): $hint" >&2; fi

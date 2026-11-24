@@ -2,11 +2,11 @@
 # Layer 0: Declarative gate registry, tier definitions, alias normalization,
 # descriptions, failure hints, and CLI help/listing.
 
-skip_rc() { echo 78; }
+# shellcheck disable=SC2034  # consumed by .mk/core.sh, .mk/tier.sh
+SKIP_RC=78
 
-conventional_regex() {
-    echo '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._/-]+\))?!?: [^ ]'
-}
+# shellcheck disable=SC2034  # consumed by .mk/gates.sh
+CONVENTIONAL_COMMIT_RE='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._/-]+\))?!?: [^ ]'
 
 tier_gates() {
     case "$1" in
@@ -64,13 +64,7 @@ gate_desc() {
         semver) echo "semver API compatibility check" ;;
         wasm) echo "wasm32 target compilation check" ;;
         mutants-diff) echo "mutation testing on branch Rust diff" ;;
-        mutants-affected) echo "mutation testing on changed packages and reverse-dependents" ;;
-        mutants-plan) echo "mutant count & shard planner JSON" ;;
         mutants) echo "bounded full-workspace mutation testing" ;;
-        check-changed) echo "fast inner loop scoped to affected packages" ;;
-        test-changed) echo "unit & integration tests scoped to affected packages" ;;
-        ci-core) echo "blocking PR checks without mutation testing" ;;
-        ci-nightly-checks) echo "nightly non-mutation sweeps" ;;
         coverage) echo "line coverage floor check" ;;
         powerset) echo "feature powerset compilation check" ;;
         miri) echo "undefined behavior check under Miri" ;;
@@ -82,13 +76,13 @@ gate_hint() {
     case "$1" in
         tools) echo "run './mk setup' to install pinned tool versions from mk.versions" ;;
         fmt | tombi | typos) echo "run './mk fix' to auto-format and fix common issues" ;;
-        lint | check-changed) echo "run './mk fix' or use #[expect(lint, reason = \"...\")] for justified exceptions" ;;
+        lint) echo "run './mk fix' or use #[expect(lint, reason = \"...\")] for justified exceptions" ;;
         lints-inherit) echo "add '[lints] workspace = true' to every member Cargo.toml" ;;
         commits) echo "use Conventional Commits format: feat|fix|docs|chore|refactor|test: <description>" ;;
         ratchet) echo "ratchets in mk.local and Cargo.toml may only tighten relative to base branch" ;;
         echoes) echo "deduplicate code, or run './mk echoes-baseline' on initial adoption (see docs/GATES.md)" ;;
         refquiem) echo "update stale doc/comment references, or add '// refquiem: allow(name)' with docs/DEBT.md entry" ;;
-        mutants | mutants-diff | mutants-affected) echo "add a test that kills the surviving mutant, or document an exclusion in .cargo/mutants.toml" ;;
+        mutants | mutants-diff) echo "add a test that kills the surviving mutant, or document an exclusion in .cargo/mutants.toml" ;;
         coverage) echo "add tests to restore line coverage, or run './mk coverage-baseline' when raising the floor" ;;
         msrv) echo "avoid APIs newer than rust-version in Cargo.toml, or bump rust-version intentionally" ;;
     esac
@@ -107,7 +101,7 @@ Tiers:
   watch             Continuous feedback via bacon / cargo-watch
   ci-fast           Local pre-push gate (skips mutants-diff & network audit; change-aware)
   ci-core           All blocking PR gates except mutants-diff (change-aware)
-  ci                Full blocking PR gate (all 21 checks + mutants-diff; change-aware)
+  ci                Full blocking PR gate (all 21 blocking gates, including mutants-diff; change-aware)
   ci-nightly-checks Nightly non-mutation sweeps (coverage, powerset, miri, outdated)
   ci-nightly        Scheduled deep sweep (mutants, coverage, powerset, miri, outdated)
   ci-release        Release gate (./mk ci + cargo publish --dry-run)
@@ -122,7 +116,7 @@ Gate aliases (alongside canonical tool names):
   unused-deps       -> machete   (unused dependency detection)
   duplication, dup  -> echoes    (code duplication & dependency API reuse)
   stale-refs        -> refquiem  (stale mentions of deleted or changed symbols)
-  feature-powerset  -> powerset  (cargo-hack --feature-powerset check)
+  feature-powerset, hack -> powerset (cargo-hack --feature-powerset check)
   cov               -> coverage  (line coverage floor check)
 
 Setup & baselines:

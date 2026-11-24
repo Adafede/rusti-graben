@@ -18,25 +18,17 @@ tool_bin() {
     case "$1" in
         *:*) echo "${1#*:}" ;;
         typos-cli) echo typos ;;
-        zizmor) echo zizmor ;;
         echoes | refquiem) echo "cargo-$1" ;;
-        cargo-*) echo "$1" ;;
-        tombi) echo tombi ;;
-        shellcheck) echo shellcheck ;;
         *) echo "$1" ;;
     esac
 }
 
 tool_version() {
-    case "$1" in
-        *:*) "${1#*:}" --version ;;
-        typos-cli) typos --version ;;
-        zizmor) zizmor --version ;;
-        echoes | refquiem) cargo "$1" --version ;;
-        cargo-*) cargo "${1#cargo-}" --version ;;
-        tombi) tombi --version ;;
-        shellcheck) shellcheck --version ;;
-        *) "$1" --version ;; # a crate whose binary has its name (mk.local tools)
+    local bin
+    bin="$(tool_bin "$1")"
+    case "$bin" in
+        cargo-*) cargo "${bin#cargo-}" --version ;;
+        *) "$bin" --version ;;
     esac
 }
 

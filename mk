@@ -29,8 +29,8 @@ LOCAL_SYSTEM_PACKAGES=() # apt packages ./mk setup installs on CI (Linux runners
 MIRI_PACKAGES=()        # crates miri tests (default: the whole workspace)
 MUTANTS_PACKAGES=()     # crates cargo-mutants mutates (default: the whole workspace)
 COVERAGE_FAIL_UNDER_LINES=100
-ECHOES_MAX_APPROXIMATE=0 # legacy approximate duplicate blocks (ratchet: only down)
-ECHOES_MAX_REUSE=0       # legacy dependency-reuse opportunities (ratchet: only down)
+ECHOES_MAX_APPROXIMATE=0 # ratcheted approximate duplicate blocks (only down)
+ECHOES_MAX_REUSE=0       # ratcheted dependency-reuse opportunities (only down)
 MK_TOOLS_DIR="${MK_TOOLS_DIR:-${CARGO_HOME:-$HOME/.cargo}/mk-tools}"
 # shellcheck source=mk.local
 if [ -f mk.local ]; then . ./mk.local; fi
@@ -93,7 +93,7 @@ case "$cmd" in
     refquiem) cmd_refquiem "$@" ;;
     semver) cmd_semver ;;
     wasm) cmd_wasm ;;
-    mutants) cmd_mutants "$@" ;;
+    mutants) run_mutants "$@" ;;
     mutants-diff) cmd_mutants_diff "$@" ;;
     mutants-affected) cmd_mutants_affected "$@" ;;
     mutants-plan) cmd_mutants_plan "$@" ;;
