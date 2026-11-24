@@ -39,4 +39,5 @@ task_docs_boundary() {
 }
 task_runner_tests() {
     python3 -m unittest discover -s tests -p 'test_*.py'
+    bash tests/selftest/suite_unit.sh
 }

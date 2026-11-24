@@ -67,3 +67,9 @@
 - **Files updated**: [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
 - **Structural impact**: Eliminated `# shellcheck disable=SC2016`, all 4 `sh -c` wrappers, and all 3 `cargo metadata` JSON regexes; decomposed into cohesive phase functions (`sync_standard_runner`, `sync_gate_files`, `configure_deny_license`, `configure_lints`, `configure_member_lints`, `configure_debug_profiles`, `configure_gitignore`) using `.mk/meta.py`.
 - **Verification**: `NO_COLOR=1 ./mk shell`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.
+
+## Step 8 — Modularize Selftest Suite
+
+- **Files added**: [tests/selftest/harness.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/harness.sh), [tests/selftest/suite_unit.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_unit.sh), [tests/selftest/suite_tools_ci.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_tools_ci.sh), [tests/selftest/suite_mutants.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_mutants.sh), [tests/selftest/suite_nightly.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_nightly.sh), [tests/selftest/suite_adopt.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_adopt.sh).
+- **Files updated/removed**: [tests/gate_selftest.sh](file:///Users/adrutz/Git/rusti-graben/tests/gate_selftest.sh) (580 → 40 LOC), [mk.local](file:///Users/adrutz/Git/rusti-graben/mk.local) (`task_runner_tests` runs both `test_meta.py` and `suite_unit.sh`); deleted standalone `tests/characterization.sh` after merging into `suite_unit.sh`.
+- **Verification**: `NO_COLOR=1 ./mk shell`, `NO_COLOR=1 ./mk ci-fast`, `NO_COLOR=1 ./mk selftest`.

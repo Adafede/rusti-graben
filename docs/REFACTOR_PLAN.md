@@ -28,7 +28,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 7 — Modularize Adoption Runner (`scripts/adopt.sh`)**: Replace `sh -c` hacks (`SC2016`) and JSON regexes with named phase functions and `.mk/meta.py`, and sync all `.mk/*` files in `STANDARD`.
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring previous `scripts/adopt.sh`.
-- [ ] **Step 8 — Modularize Selftest Suite (`tests/gate_selftest.sh`, `tests/selftest/*.sh`)**: Split 580-LOC selftest into reusable assertion harness, fast unit/characterization suite (merged from `tests/characterization.sh` and wired into `local:runner_tests`), CI/tool suite, mutants suite, nightly suite, and adoption suite (verifying `.mk/*` sync).
+- [x] **Step 8 — Modularize Selftest Suite (`tests/gate_selftest.sh`, `tests/selftest/*.sh`)**: Split 580-LOC selftest into reusable assertion harness, fast unit/characterization suite (merged from `tests/characterization.sh` and wired into `local:runner_tests`), CI/tool suite, mutants suite, nightly suite, and adoption suite (verifying `.mk/*` sync).
   - *Verify*: `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk ci-fast && NO_COLOR=1 ./mk selftest`
   - *Rollback*: Revert commit restoring monolithic `tests/gate_selftest.sh`.
 - [ ] **Step 9 — Rust Workspace Hygiene (`Cargo.toml`, `crates/sample-*`)**: Introduce `[workspace.dependencies]`, add `[profile.release]` (`lto = "thin"`, `codegen-units = 1`, `strip = "symbols"`), make `sample-lib` `no_std`-capable (`default = ["std"]`), and record binary-size/build-time deltas.
