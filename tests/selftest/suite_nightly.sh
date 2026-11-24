@@ -14,7 +14,7 @@ run_nightly_suite() {
     append_lib "$untested_fn"
     expect_fail coverage "coverage" "line coverage below the floor"
 
-    printf '\n[features]\nextra = []\n' >>"$LIB_TOML"
+    perl -pi -e 's/^\[features\]/[features]\nextra = []/' "$LIB_TOML"
     append_lib '#[cfg(feature = "extra")]
 pub fn feature_broken() -> usize {
     "wrong"
