@@ -40,3 +40,10 @@
 - **Files updated**: [.mk/meta.py](file:///Users/adrutz/Git/rusti-graben/.mk/meta.py) (compacted `main()` dispatch under 300 LOC), [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
 - **Structural impact**: Moved gate registry, aliases, help/listing, exit helpers, git diff queries, `upsert_kv_line`, docs-only diff classifier, and metadata shell facade into Layer 0 modules.
 - **Verification**: `NO_COLOR=1 ./mk shell`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.
+
+## Step 4 — Extract Pinned Tool Isolation & Unified Installer
+
+- **Files added**: [.mk/tools.sh](file:///Users/adrutz/Git/rusti-graben/.mk/tools.sh).
+- **Files updated**: [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
+- **Structural impact**: Extracted pinned tool resolution, `MK_TOOLS_DIR` PATH isolation, `$CARGO_HOME/bin` cache seeding, `cmd_setup`, and `cmd_tools` into Layer 1 `.mk/tools.sh`; unified `install_tombi` and `install_shellcheck` via shared `install_github_tarball`.
+- **Verification**: `NO_COLOR=1 ./mk shell`, `NO_COLOR=1 ./mk tools`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.

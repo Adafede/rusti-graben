@@ -16,7 +16,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 3 — Gate Catalog & Core Primitives (`.mk/catalog.sh`, `.mk/core.sh`)**: Extract declarative gate tables, alias normalization, help/list formatting, exit helpers, git diff helpers, `mk.local` key upserts, and docs-only diff classifier.
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring catalog/core functions into `mk`.
-- [ ] **Step 4 — Pinned Tool Isolation & Unified Installer (`.mk/tools.sh`)**: Extract version spec parsing, `MK_TOOLS_DIR` `PATH` isolation, `$CARGO_HOME/bin` seeding, and unify `install_tombi` + `install_shellcheck` via `install_github_tarball`.
+- [x] **Step 4 — Pinned Tool Isolation & Unified Installer (`.mk/tools.sh`)**: Extract version spec parsing, `MK_TOOLS_DIR` `PATH` isolation, `$CARGO_HOME/bin` seeding, and unify `install_tombi` + `install_shellcheck` via `install_github_tarball`.
   - *Verify*: `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk tools && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring tool management into `mk`.
 - [ ] **Step 5 — Decompose Bounded Mutation Runner (`.mk/mutants.sh`)**: Break 168-LOC `run_mutants()` and 101-LOC `mutants-plan` into cohesive `<= 38`-LOC functions (flag parsing, config inspection, budget computation, `TMPDIR`, lockdir, watchdog, scoping, commands).
