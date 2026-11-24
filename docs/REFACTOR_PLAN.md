@@ -25,7 +25,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 6 — Gate Handlers & Tier Engine (`.mk/gates.sh`, `.mk/tier.sh`, thin `mk`)**: Extract all gate command handlers, deduplicate `check-changed`/`test-changed`, `coverage`/`coverage-baseline`, and `ci-nightly`/`ci-nightly-checks`, and shrink `mk` to `<= 120` LOC.
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring handlers into `mk`.
-- [ ] **Step 7 — Modularize Adoption Runner (`scripts/adopt.sh`)**: Replace `sh -c` hacks (`SC2016`) and JSON regexes with named phase functions and `.mk/meta.py`, and sync all `.mk/*` files in `STANDARD`.
+- [x] **Step 7 — Modularize Adoption Runner (`scripts/adopt.sh`)**: Replace `sh -c` hacks (`SC2016`) and JSON regexes with named phase functions and `.mk/meta.py`, and sync all `.mk/*` files in `STANDARD`.
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring previous `scripts/adopt.sh`.
 - [ ] **Step 8 — Modularize Selftest Suite (`tests/gate_selftest.sh`, `tests/selftest/*.sh`)**: Split 580-LOC selftest into reusable assertion harness, fast unit/characterization suite (merged from `tests/characterization.sh` and wired into `local:runner_tests`), CI/tool suite, mutants suite, nightly suite, and adoption suite (verifying `.mk/*` sync).
