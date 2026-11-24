@@ -54,3 +54,10 @@
 - **Files updated**: [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
 - **Structural impact**: Broke 168-LOC `run_mutants()` and 101-LOC `mutants-plan` into cohesive `<= 40`-LOC functions (`mutants_parse_flags`, `mutants_compute_budget`, `mutants_acquire_lock`, `mutants_exec_watchdog`, `mutants_plan_parse_args`, `cmd_mutants*`); `mk` shrunk from 875 to ~480 LOC.
 - **Verification**: `NO_COLOR=1 ./mk shell`, `tests/characterization.sh`, `NO_COLOR=1 ./mk mutants-plan --mode full`, `NO_COLOR=1 ./mk ci-fast`.
+
+## Step 6 — Extract Gate Handlers & Tier Engine (Thin `mk`)
+
+- **Files added**: [.mk/gates.sh](file:///Users/adrutz/Git/rusti-graben/.mk/gates.sh), [.mk/tier.sh](file:///Users/adrutz/Git/rusti-graben/.mk/tier.sh).
+- **Files updated**: [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
+- **Structural impact**: Extracted all gate handlers into `.mk/gates.sh` (deduplicating `check-changed`/`test-changed` via `run_for_affected_packages` and `coverage`/`coverage-baseline` via `run_llvm_cov`) and tier engine into `.mk/tier.sh` (deduplicating `ci-nightly`/`ci-nightly-checks` via `run_nightly_tier`); shrunk `mk` from `1,488` LOC originally (`483` LOC in Step 5) down to `~105` LOC.
+- **Verification**: `NO_COLOR=1 ./mk shell`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.

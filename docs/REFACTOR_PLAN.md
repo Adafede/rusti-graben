@@ -22,7 +22,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 5 — Decompose Bounded Mutation Runner (`.mk/mutants.sh`)**: Break 168-LOC `run_mutants()` and 101-LOC `mutants-plan` into cohesive `<= 38`-LOC functions (flag parsing, config inspection, budget computation, `TMPDIR`, lockdir, watchdog, scoping, commands).
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk mutants-plan --mode full && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring mutation logic into `mk`.
-- [ ] **Step 6 — Gate Handlers & Tier Engine (`.mk/gates.sh`, `.mk/tier.sh`, thin `mk`)**: Extract all gate command handlers, deduplicate `check-changed`/`test-changed`, `coverage`/`coverage-baseline`, and `ci-nightly`/`ci-nightly-checks`, and shrink `mk` to `<= 120` LOC.
+- [x] **Step 6 — Gate Handlers & Tier Engine (`.mk/gates.sh`, `.mk/tier.sh`, thin `mk`)**: Extract all gate command handlers, deduplicate `check-changed`/`test-changed`, `coverage`/`coverage-baseline`, and `ci-nightly`/`ci-nightly-checks`, and shrink `mk` to `<= 120` LOC.
   - *Verify*: `NO_COLOR=1 ./mk shell && tests/characterization.sh && NO_COLOR=1 ./mk ci-fast`
   - *Rollback*: Revert commit restoring handlers into `mk`.
 - [ ] **Step 7 — Modularize Adoption Runner (`scripts/adopt.sh`)**: Replace `sh -c` hacks (`SC2016`) and JSON regexes with named phase functions and `.mk/meta.py`, and sync all `.mk/*` files in `STANDARD`.
