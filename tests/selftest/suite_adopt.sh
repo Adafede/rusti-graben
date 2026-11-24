@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2016,SC2154  # SRC, OUTSIDE from gate_selftest.sh; bash -c uses literal $1/$2
 # scripts/adopt.sh idempotency, .mk/* sync, and layout fixture tests.
 
 adopt() { DRY_RUN="$1" "$SRC/scripts/adopt.sh" "$2"; }

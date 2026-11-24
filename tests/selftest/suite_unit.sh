@@ -99,8 +99,6 @@ test_cli_and_adopt_characterization() {
     toml_out="$(unit_run_in_dir "$root" env NO_COLOR=1 ./mk toml 2>&1)"
     unit_assert_contains "toml alias runs tombi" "files linted successfully" "$toml_out"
 
-    plan_diff="$(unit_run_in_dir "$root" env NO_COLOR=1 ./mk mutants-plan --mode diff)"
-    unit_assert_eq "mutants-plan diff clean" '{"mode":"diff","mutants":0,"shards":0,"packages":[]}' "$plan_diff"
     plan_full="$(unit_run_in_dir "$root" env NO_COLOR=1 ./mk mutants-plan --mode full)"
     unit_assert_eq "mutants-plan full default" '{"mode":"full","mutants":5,"shards":1,"packages":["sample-bin","sample-lib"]}' "$plan_full"
     plan_sharded="$(unit_run_in_dir "$root" env NO_COLOR=1 MUTANTS_TARGET_PER_SHARD=2 ./mk mutants-plan --mode full)"
@@ -132,6 +130,9 @@ test_cli_and_adopt_characterization() {
     [ ! -e "$adopt_dir/mk" ] || { printf 'FAIL [adopt dry-run wrote mk]\n' >&2; return 1; }
     DRY_RUN=0 "$root/scripts/adopt.sh" "$adopt_dir" >/dev/null
     unit_assert_contains "adopt second run is no-op" "0 change(s)" "$(DRY_RUN=0 "$root/scripts/adopt.sh" "$adopt_dir")"
+    (cd "$adopt_dir" && git init -q && git add -A && git commit -qm base && git tag base)
+    plan_diff="$(unit_run_in_dir "$adopt_dir" env NO_COLOR=1 MK_BASE=base ./mk mutants-plan --mode diff)"
+    unit_assert_eq "mutants-plan diff clean" '{"mode":"diff","mutants":0,"shards":0,"packages":[]}' "$plan_diff"
 
     bin_out="$(unit_run_in_dir "$root" cargo run -q -p sample-bin)"
     unit_assert_eq "sample-bin stdout golden" "10 + 20 = 30" "$bin_out"

@@ -31,7 +31,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 8 — Modularize Selftest Suite (`tests/gate_selftest.sh`, `tests/selftest/*.sh`)**: Split 580-LOC selftest into reusable assertion harness, fast unit/characterization suite (merged from `tests/characterization.sh` and wired into `local:runner_tests`), CI/tool suite, mutants suite, nightly suite, and adoption suite (verifying `.mk/*` sync).
   - *Verify*: `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk ci-fast && NO_COLOR=1 ./mk selftest`
   - *Rollback*: Revert commit restoring monolithic `tests/gate_selftest.sh`.
-- [ ] **Step 9 — Rust Workspace Hygiene (`Cargo.toml`, `crates/sample-*`)**: Introduce `[workspace.dependencies]`, add `[profile.release]` (`lto = "thin"`, `codegen-units = 1`, `strip = "symbols"`), make `sample-lib` `no_std`-capable (`default = ["std"]`), and record binary-size/build-time deltas.
+- [x] **Step 9 — Rust Workspace Hygiene (`Cargo.toml`, `crates/sample-*`)**: Introduce `[workspace.dependencies]`, add `[profile.release]` (`lto = "thin"`, `codegen-units = 1`, `strip = "symbols"`), make `sample-lib` `no_std`-capable (`default = ["std"]`), and record binary-size/build-time deltas.
   - *Verify*: `cargo check -p sample-lib --no-default-features && NO_COLOR=1 ./mk powerset && NO_COLOR=1 ./mk ci && NO_COLOR=1 ./mk selftest`
   - *Rollback*: Revert workspace manifest and `sample-lib` feature changes.
 - [ ] **Step 10 — Doc Alignment, Anti-Timidity Check & Final Sign-off**: Update human and contributor docs (`CONTRIBUTING.md` MSRV, `README.md`, `docs/ADOPTING.md`, `docs/GATES.md`, etc.), finalize `SESSION_LOG.md` anti-timidity metrics and `REVIEW_NOTES.md`, and run full verification (`ci`, `ci-nightly`, `selftest`, `ci-release`).

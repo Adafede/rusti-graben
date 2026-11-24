@@ -93,7 +93,8 @@ check() {
 
 append_lib() { printf '\n%s\n' "$1" >>"$LIB"; }
 
-# shellcheck disable=SC2034
+# Rust snippets are single-quoted on purpose: their backticks are literal.
+# shellcheck disable=SC2034,SC2016
 untested_fn='/// Doubles `x`.
 #[must_use]
 pub const fn double(x: usize) -> usize {

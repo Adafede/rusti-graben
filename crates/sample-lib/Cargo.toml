@@ -8,5 +8,9 @@ readme = "README.md"
 repository.workspace = true
 license.workspace = true
 
+[features]
+default = ["std"]
+std = []
+
 [lints]
 workspace = true

@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# Rust and Markdown snippets are single-quoted on purpose: their backticks are literal.
+# shellcheck disable=SC2016,SC2154  # fixtures from harness.sh / gate_selftest.sh
 # Tool-isolation and blocking CI gate violation-injection tests.
 
 run_tools_and_ci_suite() {
@@ -186,8 +188,7 @@ pub const fn subtract(left: usize, right: usize) -> usize {
     perl -pi -e 's/^level = "deny"/level = "warn"/' .refquiem.toml
     expect_fail refquiem 'level = "deny"' "weakened .refquiem.toml"
 
-    perl -pi -e 's/^version = "0\.1\.0"/version = "1.0.0"/' Cargo.toml
-    perl -pi -e 's/version = "0\.1\.0"/version = "1.0.0"/' crates/sample-bin/Cargo.toml
+    perl -pi -e 's/version = "0\.1\.0"/version = "1.0.0"/g' Cargo.toml
     cargo update --workspace --offline --quiet
     append_lib "$untested_fn"
     git commit -qam "add double"
@@ -245,7 +246,7 @@ EOF
     cp mk mk.versions rust-toolchain.toml .tombi.toml .typos.toml .echoes.toml .refquiem.toml deny.toml "$single_doc/"
     cp -R .mk "$single_doc/.mk"
     (
-        cd "$single_doc"
+        cd "$single_doc" || return 1
         cargo generate-lockfile --offline --quiet
         git init -q
         git add -A

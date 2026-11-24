@@ -73,3 +73,12 @@
 - **Files added**: [tests/selftest/harness.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/harness.sh), [tests/selftest/suite_unit.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_unit.sh), [tests/selftest/suite_tools_ci.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_tools_ci.sh), [tests/selftest/suite_mutants.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_mutants.sh), [tests/selftest/suite_nightly.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_nightly.sh), [tests/selftest/suite_adopt.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_adopt.sh).
 - **Files updated/removed**: [tests/gate_selftest.sh](file:///Users/adrutz/Git/rusti-graben/tests/gate_selftest.sh) (580 → 40 LOC), [mk.local](file:///Users/adrutz/Git/rusti-graben/mk.local) (`task_runner_tests` runs both `test_meta.py` and `suite_unit.sh`); deleted standalone `tests/characterization.sh` after merging into `suite_unit.sh`.
 - **Verification**: `NO_COLOR=1 ./mk shell`, `NO_COLOR=1 ./mk ci-fast`, `NO_COLOR=1 ./mk selftest`.
+
+## Step 9 — Rust Workspace Hygiene
+
+- **Files updated**: [Cargo.toml](file:///Users/adrutz/Git/rusti-graben/Cargo.toml), [crates/sample-bin/Cargo.toml](file:///Users/adrutz/Git/rusti-graben/crates/sample-bin/Cargo.toml), [crates/sample-lib/Cargo.toml](file:///Users/adrutz/Git/rusti-graben/crates/sample-lib/Cargo.toml), [crates/sample-lib/src/lib.rs](file:///Users/adrutz/Git/rusti-graben/crates/sample-lib/src/lib.rs), [tests/selftest/suite_tools_ci.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_tools_ci.sh).
+- **Measured deltas**:
+  - `sample-bin` release size (`stat -f%z`): `435,872` B → `339,824` B (`-22.0%`); `.text` (`cargo bloat`): `213.5 KiB` (608 methods) → `207.0 KiB` (555 methods).
+  - Release build time (cold clean): `0.45s` → `52.84s` (`lto = "thin"`, `codegen-units = 1`, `strip = "symbols"` trade-off).
+  - `sample-lib --no-default-features`: compiles cleanly as `no_std`; `./mk powerset`: 4/4 feature combinations pass.
+- **Verification**: `NO_COLOR=1 ./mk tombi`, `cargo check -p sample-lib --no-default-features`, `NO_COLOR=1 ./mk powerset`, `NO_COLOR=1 ./mk ci`.

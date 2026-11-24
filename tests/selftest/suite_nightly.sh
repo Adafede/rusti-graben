@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2154  # LIB_TOML, WORK, untested_fn from harness.sh / gate_selftest.sh
 # Nightly tier gate violation-injection tests.
 
 run_nightly_suite() {

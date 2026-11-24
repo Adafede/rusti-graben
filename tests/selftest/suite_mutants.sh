@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2154  # LIB, untested_fn, MK_BASE from harness.sh / gate_selftest.sh
 # Mutation testing, package-graph scoping, cap_lints, and planner selftests.
 
 run_mutants_suite() {
