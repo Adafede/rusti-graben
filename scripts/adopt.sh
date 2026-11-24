@@ -23,7 +23,7 @@ ADOPT_REFQUIEM="${ADOPT_REFQUIEM:-1}"
 ADOPT_WORKFLOWS="${ADOPT_WORKFLOWS:-1}"
 
 # Standard: always synced to the template (they hold no repository settings).
-STANDARD=(mk mk.versions .mk/catalog.sh .mk/core.sh .mk/meta.py .mk/tools.sh .github/actions/setup/action.yml)
+STANDARD=(mk mk.versions .mk/catalog.sh .mk/core.sh .mk/meta.py .mk/mutants.sh .mk/tools.sh .github/actions/setup/action.yml)
 MARKER="rusti-graben standard runner"
 # Copied when missing. Template-only files (selftest, sample crates) are skipped;
 # AGENTS.md and docs/DEBT.md are seeded with template-specific lines stripped.

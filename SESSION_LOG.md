@@ -47,3 +47,10 @@
 - **Files updated**: [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
 - **Structural impact**: Extracted pinned tool resolution, `MK_TOOLS_DIR` PATH isolation, `$CARGO_HOME/bin` cache seeding, `cmd_setup`, and `cmd_tools` into Layer 1 `.mk/tools.sh`; unified `install_tombi` and `install_shellcheck` via shared `install_github_tarball`.
 - **Verification**: `NO_COLOR=1 ./mk shell`, `NO_COLOR=1 ./mk tools`, `tests/characterization.sh`, `NO_COLOR=1 ./mk ci-fast`.
+
+## Step 5 — Decompose Bounded Mutation Runner
+
+- **Files added**: [.mk/mutants.sh](file:///Users/adrutz/Git/rusti-graben/.mk/mutants.sh).
+- **Files updated**: [mk](file:///Users/adrutz/Git/rusti-graben/mk), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh).
+- **Structural impact**: Broke 168-LOC `run_mutants()` and 101-LOC `mutants-plan` into cohesive `<= 40`-LOC functions (`mutants_parse_flags`, `mutants_compute_budget`, `mutants_acquire_lock`, `mutants_exec_watchdog`, `mutants_plan_parse_args`, `cmd_mutants*`); `mk` shrunk from 875 to ~480 LOC.
+- **Verification**: `NO_COLOR=1 ./mk shell`, `tests/characterization.sh`, `NO_COLOR=1 ./mk mutants-plan --mode full`, `NO_COLOR=1 ./mk ci-fast`.
