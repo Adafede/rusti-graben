@@ -4,7 +4,7 @@
 
 Security issues in `rusti-graben` include flaws in:
 
-- [`mk`](./mk), [`mk.versions`](./mk.versions), and [`scripts/adopt.sh`](./scripts/adopt.sh) (such as unsafe shell quoting, command injection, or silent gate bypasses)
+- [`mk`](./mk), [`.mk/`](./.mk), [`mk.versions`](./mk.versions), and [`scripts/adopt.sh`](./scripts/adopt.sh) (such as unsafe shell quoting, command injection, or silent gate bypasses)
 - [`.github/actions/setup/action.yml`](./.github/actions/setup/action.yml) and repository workflows in [`.github/workflows/`](./.github/workflows/)
 
 ## Reporting a Vulnerability

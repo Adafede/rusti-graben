@@ -14,3 +14,8 @@ Every unavoidable lint suppression, duplicate-dependency skip, echoes/coverage r
 - `COVERAGE_FAIL_UNDER_LINES="100"`
 - `ECHOES_MAX_APPROXIMATE=0`
 - `ECHOES_MAX_REUSE=0`
+
+## Template Invariants
+
+- `semver` gate (`cargo-semver-checks`) is retained as a core template gate (skips pre-1.0 crates automatically; verified by selftest).
+- `crates/sample-lib` and `crates/sample-bin` remain separate and omit `publish = false` so `deny` license enforcement (`[licenses.private] ignore = true`) and cross-crate `mutants-affected` / `lints-inherit` remain exercised by `./mk selftest`.

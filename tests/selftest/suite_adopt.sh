@@ -34,7 +34,7 @@ test_adopt_legacy_behavior() {
     check "adopt: members inherit them" bash -c 'cd "$1" && git init -q && ./mk lints-inherit' _ "$legacy"
     check "adopt: adopted workspace runs ./mk --list" bash -c 'cd "$1" && ./mk --list | grep -qx "ci"' _ "$legacy"
     check "adopt: adopted workspace runs ./mk mutants-plan --mode full" bash -c 'cd "$1" && ./mk mutants-plan --mode full | grep -q "\"core-x\""' _ "$legacy"
-    check "adopt: deny no longer allows the template's AGPL license" bash -c '! grep -q AGPL "$1/deny.toml"' _ "$legacy"
+    check "adopt: deny drops the template's AGPL license" bash -c '! grep -q AGPL "$1/deny.toml"' _ "$legacy"
     check "adopt: deny does not duplicate MIT" bash -c '[ "$(grep -c "\"MIT\"" "$1/deny.toml")" -eq 1 ]' _ "$legacy"
     check "adopt: gitignore preserves existing line without trailing newline" grep -qx '/target' "$legacy/.gitignore"
     check "adopt: gitignore appends lcov.info on its own line" grep -qx 'lcov.info' "$legacy/.gitignore"

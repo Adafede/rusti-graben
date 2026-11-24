@@ -27,11 +27,11 @@ Always set `NO_COLOR=1` (or `CI=1`) when reading output programmatically.
 
 ## Audit Pitfalls
 
-- **Compiled Markdown**: `crates/sample-lib/README.md` is embedded via `#![doc = include_str!("../README.md")]` in `crates/sample-lib/src/lib.rs`. Backticks, broken intra-doc links, and Rust fenced blocks are compiled by `./mk doc` and `./mk test`. Keep example anchor `/// Adds two` intact unless updating `tests/gate_selftest.sh`.
+- **Compiled Markdown**: `crates/sample-lib/README.md` is embedded via `#![doc = include_str!("../README.md")]` in `crates/sample-lib/src/lib.rs`. Backticks, broken intra-doc links, and Rust fenced blocks are compiled by `./mk doc` and `./mk test`. Keep example anchor `/// Adds two` intact unless updating `tests/selftest/suite_tools_ci.sh`.
 - **TOML inline comments**: `tombi format --check` requires two spaces before inline `#` comments (`"MIT",  # comment`).
 - **Git-history symbol tracking**: `cargo refquiem` scans commits and flags backticked deleted or signature-changed Rust items across comments and Markdown. Update mentions or document `<!-- refquiem: allow(name) -->` / `// refquiem: allow(name)` in `docs/DEBT.md` (unused markers also fail).
 - **Bounded mutation runner**: `LOCAL_OVERRIDES` cannot override `mutants` or `mutants-diff`. `run_mutants` requires free disk (`MUTANTS_MIN_FREE_DISK_GB=10`) and free memory (`MUTANTS_MIN_FREE_MEM_PCT=15`).
-- **Miri temp-path stubs**: `cargo-miri` caches the build CWD inside test runner stubs under `target/miri`. In `tests/gate_selftest.sh`, run `miri` with an isolated `CARGO_TARGET_DIR="$WORK/target-miri"` so deleted `mktemp` directories never break subsequent selftest runs.
+- **Miri temp-path stubs**: `cargo-miri` caches the build CWD inside test runner stubs under `target/miri`. In `tests/selftest/suite_nightly.sh`, run `miri` with an isolated `CARGO_TARGET_DIR="$WORK/target-miri"` so deleted `mktemp` directories never break subsequent selftest runs.
 - **Host `CARGO_HOME` contention**: If concurrent jobs share `~/.cargo/bin` and overwrite pinned binaries (such as `tombi`), use an isolated `CARGO_HOME` populated with `./mk setup ci` instead of mutating shared globals.
 - **Line-ending & sed portability**: `scripts/adopt.sh` runs on macOS BSD `sed` and Bash (`-i.bak` followed by `rm -f *.bak`, newline-checked `.gitignore` appends). Test shell edits with `./mk shell` (`shellcheck --severity=style`).
 
@@ -39,8 +39,8 @@ Always set `NO_COLOR=1` (or `CI=1`) when reading output programmatically.
 
 ### Adding or Modifying a Gate
 
-1. Implement the task in `mk` (or template-only in `mk.local` below `# Ratchet:`), update `./mk help` if public, and add its `gate_desc` / `gate_hint` entries.
-2. Add an `expect_fail` violation case in `tests/gate_selftest.sh` first and confirm it fails before patching or catches the target marker afterward.
+1. Implement the task in `.mk/gates.sh` (or `.mk/nightly.sh`, or template-only in `mk.local` below `# Ratchet:`), wire it in `mk`, update `.mk/catalog.sh` (`print_help`, `gate_desc`, `gate_hint`), and document it in `docs/GATES.md`.
+2. Add an `expect_fail` violation case in `tests/selftest/*.sh` first and confirm it fails before patching or catches the target marker afterward.
 3. Update `docs/GATES.md` with accurate trigger and selftest violation rows (no agent references).
 4. Run `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk ci && NO_COLOR=1 ./mk selftest`.
 

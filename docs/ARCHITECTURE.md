@@ -2,6 +2,19 @@
 
 `rusti-graben` is a zero-drift Rust quality-hygiene template and adoption runner. Its architecture keeps local runs, git hooks, and CI workflows identical by funneling every check through a single shell entrypoint (`./mk`) backed by strictly layered, single-responsibility modules.
 
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| **Standard runner** | The synced runner files (`mk`, `mk.versions`, `.mk/*`, `.github/actions/setup/action.yml`) kept identical across adopted repositories by `scripts/adopt.sh`. |
+| **Local config** | Repository-specific configuration and extensions in `mk.local` (`LOCAL_CI_GATES`, `LOCAL_OVERRIDES`, `MUTANTS_PACKAGES`, ratchets), never overwritten by `scripts/adopt.sh`. |
+| **Gate** | An atomic verification step invoked as `./mk <gate>` (returning `0` on pass, `78` on tier skip, `1` on failure). |
+| **Tier** | A named sequence of gates executed by `run_tier` (`check`, `ci-fast`, `ci-core`, `ci`, `ci-nightly-checks`, `ci-nightly`, `ci-release`). |
+| **Ratchet** | A monotonic quality floor checked by `./mk ratchet` against the base branch (`COVERAGE_FAIL_UNDER_LINES`, `ECHOES_MAX_*`, and `Cargo.toml` lint allows). |
+| **Baseline** | The initial recorded ratchet value written to `mk.local` via `./mk coverage-baseline` or `./mk echoes-baseline`. |
+| **Affected packages** | Workspace crates owning changed files plus their transitive workspace reverse-dependents, computed by `.mk/meta.py`. |
+| **Selftest** | Template-only failure-injection suite (`./mk selftest`) proving every gate fails on a synthetic violation and `scripts/adopt.sh` stays idempotent. |
+
 ## Layered Dependency Rule
 
 Dependencies flow strictly downward from entrypoints to pure domain logic:
@@ -42,7 +55,7 @@ Each file and module owns one cohesive responsibility:
 |---|---|---|
 | Layer 0 | `.mk/meta.py` | Pure `cargo metadata` parsing, workspace reverse-dependency graph traversal, shard math, and compact JSON plan formatting. |
 | Layer 0 | `.mk/catalog.sh` | Declarative gate registry, tier lists, alias normalization, descriptions, failure hints, and CLI help/list formatting. |
-| Layer 0 | `.mk/core.sh` | Foundational `die`/`skip` exits, git diff helpers, docs-only diff classifier, config key upserts, and `.mk/meta.py` shell facade. |
+| Layer 0 | `.mk/core.sh` | Foundational `die`/`skip` exits, git diff helpers, docs-only diff classifier, config key upserts, and `.mk/meta.py` runner (`meta_py`). |
 | Layer 1 | `.mk/tools.sh` | Version spec parsing, `MK_TOOLS_DIR` `PATH` isolation, `$CARGO_HOME/bin` seeding, unified tarball/binstall installers, `setup`, and `tools`. |
 | Layer 2 | `.mk/mutants.sh` | Resource starvation probes, flag/config inspection, CPU/thread budgeting, atomic lockdir, process-group watchdog, and `run_mutants`. |
 | Layer 2 | `.mk/mutants_plan.sh` | Mutation scope filtering, `mutants-diff`, `mutants-affected`, and `mutants-plan` JSON output. |
