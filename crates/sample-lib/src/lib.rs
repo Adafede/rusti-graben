@@ -19,8 +19,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4, "two plus two");
+    fn adds_two_numbers() {
+        assert_eq!(add(2, 2), 4, "two plus two");
     }
 }

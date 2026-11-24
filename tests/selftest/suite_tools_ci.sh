@@ -86,7 +86,7 @@ pub fn greet() {
     perl -0pi -e 's/\[lints\]\nworkspace = true\n//' "$BIN_TOML"
     expect_fail lints-inherit "missing" "crate not inheriting workspace lints"
 
-    perl -pi -e 's/assert_eq!\(result, 4,/assert_eq!(result, 5,/' "$LIB"
+    perl -pi -e 's/assert_eq!\(add\(2, 2\), 4,/assert_eq!(add(2, 2), 5,/' "$LIB"
     expect_fail test "FAILED" "failing unit test"
 }
 
