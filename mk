@@ -74,14 +74,14 @@ skip() {
     exit 0
 }
 
-has_lib() { cargo metadata --no-deps --format-version 1 --locked | grep -Eq '"kind":\[[^]]*"(lib|rlib|dylib|cdylib|staticlib|proc-macro)"'; }
+has_lib() { command -v python3 >/dev/null || die "python3 is required"; python3 "$ROOT_DIR/.mk/meta.py" has-lib --locked; }
 # Declared outside comments (the template's toolchain file mentions it in one).
 has_wasm() { grep -Eq '^[^#]*wasm32' rust-toolchain.toml Cargo.toml 2>/dev/null; }
 msrv() {
     local v
     v="$(sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)"
-    if [ -z "$v" ]; then
-        v="$(cargo metadata --no-deps --format-version 1 2>/dev/null | grep -o '"rust_version":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+    if [ -z "$v" ] && command -v python3 >/dev/null; then
+        v="$(python3 "$ROOT_DIR/.mk/meta.py" msrv 2>/dev/null || true)"
     fi
     printf '%s\n' "$v"
 }
@@ -111,19 +111,7 @@ has_pkg_flag() {
 
 workspace_packages() {
     command -v python3 >/dev/null || die "python3 is required"
-    cargo metadata --no-deps --format-version 1 | python3 -c '
-import json, sys
-
-meta = json.load(sys.stdin)
-members = set(meta.get("workspace_members", []))
-names = sorted(
-    p["name"]
-    for p in meta.get("packages", [])
-    if not members or p["id"] in members
-)
-for name in names:
-    print(name)
-'
+    python3 "$ROOT_DIR/.mk/meta.py" packages
 }
 
 changed_rust_packages() {
@@ -134,40 +122,7 @@ changed_rust_packages() {
     {
         git diff --no-ext-diff --no-color --name-only "$mb" -- '*.rs'
         git ls-files --others --exclude-standard -- '*.rs'
-    } | python3 -c '
-import json, os, subprocess, sys
-
-files = sorted({line.strip() for line in sys.stdin if line.strip()})
-if not files:
-    sys.exit(0)
-
-git_root = os.path.realpath(sys.argv[1])
-meta = json.loads(
-    subprocess.check_output(
-        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
-        text=True,
-    )
-)
-members = set(meta.get("workspace_members", []))
-pkgs = []
-for p in meta.get("packages", []):
-    if members and p["id"] not in members:
-        continue
-    pdir = os.path.dirname(os.path.realpath(p["manifest_path"]))
-    pkgs.append((len(pdir), pdir, p["name"]))
-pkgs.sort(reverse=True)
-
-found = set()
-for rel in files:
-    abs_f = os.path.realpath(os.path.join(git_root, rel))
-    for _, pdir, name in pkgs:
-        if abs_f == pdir or abs_f.startswith(pdir + os.sep):
-            found.add(name)
-            break
-
-for name in sorted(found):
-    print(name)
-' "$git_root"
+    } | python3 "$ROOT_DIR/.mk/meta.py" changed "$git_root"
 }
 
 affected_packages() {
@@ -178,101 +133,7 @@ affected_packages() {
     {
         git diff --no-ext-diff --no-color --name-only "$mb"
         git ls-files --others --exclude-standard
-    } | python3 -c '
-from collections import deque
-import json, os, subprocess, sys
-
-files = sorted({line.strip() for line in sys.stdin if line.strip()})
-if not files:
-    sys.exit(0)
-
-git_root = os.path.realpath(sys.argv[1])
-root_real = os.path.realpath(sys.argv[2])
-root_triggers = {
-    "Cargo.toml",
-    "Cargo.lock",
-    "rust-toolchain.toml",
-    ".cargo/mutants.toml",
-    "mk",
-    "mk.versions",
-    "mk.local",
-}
-
-meta = json.loads(
-    subprocess.check_output(
-        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
-        text=True,
-    )
-)
-members = set(meta.get("workspace_members", []))
-pkgs = [p for p in meta.get("packages", []) if not members or p["id"] in members]
-
-id_to_name = {}
-dir_to_ids = {}
-dir_list = []
-for p in pkgs:
-    pid = p["id"]
-    name = p["name"]
-    pdir = os.path.dirname(os.path.realpath(p["manifest_path"]))
-    id_to_name[pid] = name
-    dir_to_ids.setdefault(pdir, []).append(pid)
-    dir_list.append((len(pdir), pdir, pid, name))
-dir_list.sort(reverse=True)
-
-for rel in files:
-    abs_f = os.path.realpath(os.path.join(git_root, rel))
-    rel_root = os.path.relpath(abs_f, root_real).replace(os.sep, "/")
-    if rel_root in root_triggers:
-        for name in sorted(id_to_name.values()):
-            print(name)
-        sys.exit(0)
-
-name_to_ids = {}
-for pid, name in id_to_name.items():
-    name_to_ids.setdefault(name, []).append(pid)
-
-rev_deps = {pid: set() for pid in id_to_name}
-for p in pkgs:
-    caller = p["id"]
-    for dep in p.get("dependencies", []):
-        dep_path = dep.get("path")
-        if dep_path:
-            target_dir = os.path.realpath(dep_path)
-            for tid in dir_to_ids.get(target_dir, []):
-                if id_to_name[tid] == dep["name"]:
-                    rev_deps[tid].add(caller)
-        elif dep.get("source") is None:
-            for tid in name_to_ids.get(dep["name"], []):
-                rev_deps[tid].add(caller)
-
-seeds = set()
-for rel in files:
-    abs_f = os.path.realpath(os.path.join(git_root, rel))
-    for _, pdir, pid, _ in dir_list:
-        if abs_f == pdir or abs_f.startswith(pdir + os.sep):
-            inside = os.path.relpath(abs_f, pdir)
-            top = inside.split(os.sep)[0]
-            if (
-                rel.endswith(".rs")
-                or os.path.basename(rel) == "Cargo.toml"
-                or top in ("src", "tests", "benches", "examples")
-                or inside == "README.md"
-            ):
-                seeds.add(pid)
-            break
-
-seen = set(seeds)
-q = deque(seeds)
-while q:
-    cur = q.popleft()
-    for nxt in rev_deps.get(cur, ()):
-        if nxt not in seen:
-            seen.add(nxt)
-            q.append(nxt)
-
-for name in sorted({id_to_name[pid] for pid in seen}):
-    print(name)
-' "$git_root" "$ROOT_DIR"
+    } | python3 "$ROOT_DIR/.mk/meta.py" affected "$git_root" "$ROOT_DIR"
 }
 
 intersect_mutants_scope() {
@@ -1151,10 +1012,11 @@ EOF
         done
         # Workspace lints only apply to crates that opt in.
         missing=0
+        command -v python3 >/dev/null || die "python3 is required"
         while IFS= read -r manifest; do
             awk '/^\[lints\]/{s=1;next} /^\[/{s=0} s && /^workspace *= *true/{f=1} END{exit !f}' "$manifest" ||
                 { echo "missing '[lints] workspace = true' in $manifest"; missing=1; }
-        done < <(cargo metadata --no-deps --format-version 1 --locked | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4)
+        done < <(python3 "$ROOT_DIR/.mk/meta.py" manifests --locked)
         [ "$missing" = 0 ]
         ;;
     test)
@@ -1251,7 +1113,7 @@ EOF
         need cargo-semver-checks
         has_lib || skip "no library target"
         # Pre-1.0 crates are in development: breaking changes need no version bump.
-        if ! cargo metadata --no-deps --format-version 1 --locked | grep -o '"version":"[^"]*"' | grep -qv '"version":"0\.'; then
+        if ! python3 "$ROOT_DIR/.mk/meta.py" has-stable-version --locked; then
             skip "every crate is pre-1.0 (in development), so breaking changes are allowed"
         fi
         base="$(git tag --merged HEAD --no-contains HEAD --list 'v*' --sort=-v:refname | head -1)"
@@ -1339,15 +1201,7 @@ EOF
             *) die "invalid --mode '$mode' (expected diff, affected, or full)" ;;
         esac
         emit_plan() {
-            python3 -c '
-import json, sys
-print(json.dumps({
-    "mode": sys.argv[1],
-    "mutants": int(sys.argv[2]),
-    "shards": int(sys.argv[3]),
-    "packages": sys.argv[4:],
-}, separators=(",", ":")))
-' "$@"
+            python3 "$ROOT_DIR/.mk/meta.py" plan-json "$@"
         }
         if [ "$mode" = diff ] || [ "$mode" = affected ]; then
             if [ "$has_explicit_base" = 1 ]; then
@@ -1395,13 +1249,7 @@ print(json.dumps({
         fi
         [[ "$target" =~ ^[1-9][0-9]*$ ]] || die "MUTANTS_TARGET_PER_SHARD must be a positive integer, got '$target'"
         [[ "$max_shards" =~ ^[1-9][0-9]*$ ]] || die "MUTANTS_MAX_SHARDS must be a positive integer, got '$max_shards'"
-        if [ "$mutants" -eq 0 ]; then
-            shards=0
-        else
-            shards=$(( (mutants + target - 1) / target ))
-            [ "$shards" -ge 1 ] || shards=1
-            [ "$shards" -le "$max_shards" ] || shards="$max_shards"
-        fi
+        shards="$(python3 "$ROOT_DIR/.mk/meta.py" shards "$mutants" "$target" "$max_shards")"
         emit_plan "$mode" "$mutants" "$shards" "${scoped[@]}"
         ;;
     coverage)
@@ -1466,7 +1314,7 @@ print(json.dumps({
     local:*) cargo_make "${cmd#local:}" "$@" ;;
     ci-release)
         "$0" ci
-        if cargo metadata --no-deps --format-version 1 --locked | grep -q '"publish":null'; then
+        if python3 "$ROOT_DIR/.mk/meta.py" has-publishable --locked; then
             cargo publish --workspace --dry-run --locked
         else
             echo "[skip] publish: every crate sets publish = false"

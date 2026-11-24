@@ -343,6 +343,7 @@ EOF
 printf '#![doc = include_str!("../README.md")]\n' >"$single_doc/src/lib.rs"
 printf '# single-doc\n' >"$single_doc/README.md"
 cp mk mk.versions rust-toolchain.toml .tombi.toml .typos.toml .echoes.toml .refquiem.toml deny.toml "$single_doc/"
+cp -R .mk "$single_doc/.mk"
 (
     cd "$single_doc"
     cargo generate-lockfile --offline --quiet
