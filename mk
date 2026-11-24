@@ -42,8 +42,12 @@ if [ -f mk.local ]; then . ./mk.local; fi
 . "$ROOT_DIR/.mk/tools.sh"
 # shellcheck source=.mk/mutants.sh
 . "$ROOT_DIR/.mk/mutants.sh"
+# shellcheck source=.mk/mutants_plan.sh
+. "$ROOT_DIR/.mk/mutants_plan.sh"
 # shellcheck source=.mk/gates.sh
 . "$ROOT_DIR/.mk/gates.sh"
+# shellcheck source=.mk/nightly.sh
+. "$ROOT_DIR/.mk/nightly.sh"
 # shellcheck source=.mk/tier.sh
 . "$ROOT_DIR/.mk/tier.sh"
 

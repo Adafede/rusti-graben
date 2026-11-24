@@ -9,8 +9,8 @@ Dependencies flow strictly downward from entrypoints to pure domain logic:
 ```mermaid
 flowchart TD
     L4["Layer 4: Entrypoints & Tooling (mk, scripts/adopt.sh, tests/gate_selftest.sh)"]
-    L3["Layer 3: Gate Handlers & Tier Engine (.mk/gates.sh, .mk/tier.sh)"]
-    L2["Layer 2: Bounded Mutation Subsystem (.mk/mutants.sh)"]
+    L3["Layer 3: Gate Handlers & Tier Engine (.mk/gates.sh, .mk/nightly.sh, .mk/tier.sh)"]
+    L2["Layer 2: Bounded Mutation Subsystem (.mk/mutants.sh, .mk/mutants_plan.sh)"]
     L1["Layer 1: Pinned Tool & Setup Adapters (.mk/tools.sh)"]
     L0["Layer 0: Pure Logic, Catalog & Core (.mk/meta.py, .mk/catalog.sh, .mk/core.sh)"]
 
@@ -44,8 +44,10 @@ Each file and module owns one cohesive responsibility:
 | Layer 0 | `.mk/catalog.sh` | Declarative gate registry, tier lists, alias normalization, descriptions, failure hints, and CLI help/list formatting. |
 | Layer 0 | `.mk/core.sh` | Foundational `die`/`skip` exits, git diff helpers, docs-only diff classifier, config key upserts, and `.mk/meta.py` shell facade. |
 | Layer 1 | `.mk/tools.sh` | Version spec parsing, `MK_TOOLS_DIR` `PATH` isolation, `$CARGO_HOME/bin` seeding, unified tarball/binstall installers, `setup`, and `tools`. |
-| Layer 2 | `.mk/mutants.sh` | Resource starvation probes, flag/config inspection, CPU/thread budgeting, atomic lockdir, process-group watchdog, and `mutants*` commands. |
-| Layer 3 | `.mk/gates.sh` | Single-purpose command handlers for inner-loop, hygiene, security, supply-chain, ratchet, nightly, and release gates. |
+| Layer 2 | `.mk/mutants.sh` | Resource starvation probes, flag/config inspection, CPU/thread budgeting, atomic lockdir, process-group watchdog, and `run_mutants`. |
+| Layer 2 | `.mk/mutants_plan.sh` | Mutation scope filtering, `mutants-diff`, `mutants-affected`, and `mutants-plan` JSON output. |
+| Layer 3 | `.mk/gates.sh` | Single-purpose command handlers for inner-loop, hygiene, security, supply-chain, and ratchet gates. |
+| Layer 3 | `.mk/nightly.sh` | Nightly coverage/powerset/miri/outdated handlers, release dry-run, template selftest, and fallback dispatch. |
 | Layer 3 | `.mk/tier.sh` | `cargo-make` bridge, `LOCAL_OVERRIDES` safety guard/dispatch, tier loop runner, and nightly idle-run short-circuiting. |
 | Layer 4 | `mk` | Thin entrypoint sourcing config and `.mk/` modules, normalizing aliases, checking overrides, and dispatching commands. |
 | Layer 4 | `mk.versions` | Single source of truth for pinned nightly toolchain, `cargo-binstall` crate versions, `tombi`, and `shellcheck`. |

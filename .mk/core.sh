@@ -51,7 +51,7 @@ upsert_kv_line() {
 
 has_lib() {
     require_python3
-    python3 "${ROOT_DIR:-.}/.mk/meta.py" has-lib --locked
+    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" has-lib --locked
 }
 
 # Declared outside comments (the template's toolchain file mentions it in one).
@@ -63,7 +63,7 @@ msrv() {
     local v
     v="$(sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)"
     if [ -z "$v" ] && command -v python3 >/dev/null; then
-        v="$(python3 "${ROOT_DIR:-.}/.mk/meta.py" msrv 2>/dev/null || true)"
+        v="$(python3 -B "${ROOT_DIR:-.}/.mk/meta.py" msrv 2>/dev/null || true)"
     fi
     printf '%s\n' "$v"
 }
@@ -101,36 +101,36 @@ write_rust_diff() {
 
 workspace_packages() {
     require_python3
-    python3 "${ROOT_DIR:-.}/.mk/meta.py" packages
+    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" packages
 }
 
 workspace_manifests() {
     require_python3
-    python3 "${ROOT_DIR:-.}/.mk/meta.py" manifests --locked
+    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" manifests --locked
 }
 
 changed_rust_packages() {
     local base="$1" git_root
     require_python3
     git_root="$(git rev-parse --show-toplevel)"
-    git_changed_files "$base" -- '*.rs' | python3 "${ROOT_DIR:-.}/.mk/meta.py" changed "$git_root"
+    git_changed_files "$base" -- '*.rs' | python3 -B "${ROOT_DIR:-.}/.mk/meta.py" changed "$git_root"
 }
 
 affected_packages() {
     local base="$1" git_root
     require_python3
     git_root="$(git rev-parse --show-toplevel)"
-    git_changed_files "$base" | python3 "${ROOT_DIR:-.}/.mk/meta.py" affected "$git_root" "${ROOT_DIR:-.}"
+    git_changed_files "$base" | python3 -B "${ROOT_DIR:-.}/.mk/meta.py" affected "$git_root" "${ROOT_DIR:-.}"
 }
 
 has_stable_version() {
     require_python3
-    python3 "${ROOT_DIR:-.}/.mk/meta.py" has-stable-version --locked
+    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" has-stable-version --locked
 }
 
 has_publishable() {
     require_python3
-    python3 "${ROOT_DIR:-.}/.mk/meta.py" has-publishable --locked
+    python3 -B "${ROOT_DIR:-.}/.mk/meta.py" has-publishable --locked
 }
 
 # True when a non-empty diff against base_ref touches only documentation, workflow,

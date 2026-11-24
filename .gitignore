@@ -19,3 +19,7 @@ mutants.out*/
 # Local agent state (never committed)
 .agent-work/
 .claude/
+
+# Python bytecode
+__pycache__/
+*.py[cod]

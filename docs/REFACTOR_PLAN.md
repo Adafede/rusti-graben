@@ -32,6 +32,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
   - *Verify*: `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk ci-fast && NO_COLOR=1 ./mk selftest`
   - *Rollback*: Revert commit restoring monolithic `tests/gate_selftest.sh`.
 - [x] **Step 9 — Rust Workspace Hygiene (`Cargo.toml`, `crates/sample-*`)**: Introduce `[workspace.dependencies]`, add `[profile.release]` (`lto = "thin"`, `codegen-units = 1`, `strip = "symbols"`), make `sample-lib` `no_std`-capable (`default = ["std"]`), and record binary-size/build-time deltas.
+- [x] **Step 9.5 — Bytecode Hygiene & Strict File/Function Size Compliance**: Add `python3 -B` / `__pycache__/` hygiene, split `.mk/mutants_plan.sh` and `.mk/nightly.sh` so all files are `<= 300` LOC and all functions `<= 40` LOC.
   - *Verify*: `cargo check -p sample-lib --no-default-features && NO_COLOR=1 ./mk powerset && NO_COLOR=1 ./mk ci && NO_COLOR=1 ./mk selftest`
   - *Rollback*: Revert workspace manifest and `sample-lib` feature changes.
 - [ ] **Step 10 — Doc Alignment, Anti-Timidity Check & Final Sign-off**: Update human and contributor docs (`CONTRIBUTING.md` MSRV, `README.md`, `docs/ADOPTING.md`, `docs/GATES.md`, etc.), finalize `SESSION_LOG.md` anti-timidity metrics and `REVIEW_NOTES.md`, and run full verification (`ci`, `ci-nightly`, `selftest`, `ci-release`).

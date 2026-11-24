@@ -27,6 +27,8 @@ STANDARD=(
     .mk/gates.sh
     .mk/meta.py
     .mk/mutants.sh
+    .mk/mutants_plan.sh
+    .mk/nightly.sh
     .mk/tier.sh
     .mk/tools.sh
     .github/actions/setup/action.yml
@@ -146,7 +148,7 @@ configure_deny_license() {
     local own deny_src="deny.toml"
     own="$(sed -n 's/^license *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)"
     if [ -z "$own" ]; then
-        own="$(python3 "$TEMPLATE_DIR/.mk/meta.py" license 2>/dev/null || true)"
+        own="$(python3 -B "$TEMPLATE_DIR/.mk/meta.py" license 2>/dev/null || true)"
     fi
     [ -e "$deny_src" ] || deny_src="$TEMPLATE_DIR/deny.toml"
     if grep -q "own license (scripts/adopt.sh replaces it)" "$deny_src" 2>/dev/null; then
@@ -192,7 +194,7 @@ configure_member_lints() {
         if ! awk '/^\[lints\]/{s=1;next} /^\[/{s=0} s && /^workspace *= *true/{f=1} END{exit !f}' "$manifest"; then
             act "make ${manifest#"$TARGET_DIR"/} inherit workspace lints" append_workspace_lint_inherit "$manifest"
         fi
-    done < <(python3 "$TEMPLATE_DIR/.mk/meta.py" manifests)
+    done < <(python3 -B "$TEMPLATE_DIR/.mk/meta.py" manifests)
 }
 
 configure_debug_profiles() {
@@ -213,7 +215,7 @@ print_next_steps() {
     echo "==> $changes change(s)$([ "$DRY_RUN" = 1 ] && echo ' planned; rerun with DRY_RUN=0 to apply')"
     [ "$DRY_RUN" = 0 ] || return 0
     if ! grep -q '^rust-version' Cargo.toml &&
-        [ -z "$(python3 "$TEMPLATE_DIR/.mk/meta.py" msrv 2>/dev/null || true)" ]; then
+        [ -z "$(python3 -B "$TEMPLATE_DIR/.mk/meta.py" msrv 2>/dev/null || true)" ]; then
         echo "    TODO: set rust-version in Cargo.toml (the msrv gate requires it)"
     fi
     cat <<'EOF'

@@ -82,3 +82,10 @@
   - Release build time (cold clean): `0.45s` → `52.84s` (`lto = "thin"`, `codegen-units = 1`, `strip = "symbols"` trade-off).
   - `sample-lib --no-default-features`: compiles cleanly as `no_std`; `./mk powerset`: 4/4 feature combinations pass.
 - **Verification**: `NO_COLOR=1 ./mk tombi`, `cargo check -p sample-lib --no-default-features`, `NO_COLOR=1 ./mk powerset`, `NO_COLOR=1 ./mk ci`.
+
+## Step 9.5 — Bytecode Hygiene & Strict Size Compliance
+
+- **Files added**: [.mk/mutants_plan.sh](file:///Users/adrutz/Git/rusti-graben/.mk/mutants_plan.sh), [.mk/nightly.sh](file:///Users/adrutz/Git/rusti-graben/.mk/nightly.sh).
+- **Files updated**: [.gitignore](file:///Users/adrutz/Git/rusti-graben/.gitignore), [mk](file:///Users/adrutz/Git/rusti-graben/mk), [mk.local](file:///Users/adrutz/Git/rusti-graben/mk.local), [.mk/core.sh](file:///Users/adrutz/Git/rusti-graben/.mk/core.sh), [.mk/meta.py](file:///Users/adrutz/Git/rusti-graben/.mk/meta.py), [.mk/mutants.sh](file:///Users/adrutz/Git/rusti-graben/.mk/mutants.sh), [.mk/gates.sh](file:///Users/adrutz/Git/rusti-graben/.mk/gates.sh), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh), [tests/selftest/harness.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/harness.sh), [tests/selftest/suite_unit.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_unit.sh), [tests/selftest/suite_adopt.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_adopt.sh), [tests/selftest/suite_tools_ci.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_tools_ci.sh), [docs/ARCHITECTURE.md](file:///Users/adrutz/Git/rusti-graben/docs/ARCHITECTURE.md).
+- **Structural impact**: Enforced `python3 -B` across every runner/adoption/test invocation and ignored `__pycache__/`; split `.mk/mutants_plan.sh` and `.mk/nightly.sh` and decomposed selftest suite helpers so **zero** files exceed 300 LOC and **zero** functions exceed 40 LOC.
+- **Verification**: LOC audit (`0` violations), `NO_COLOR=1 ./mk shell`, `NO_COLOR=1 ./mk ci-fast`.

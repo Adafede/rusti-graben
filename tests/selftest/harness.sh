@@ -71,7 +71,7 @@ expect_rc_and_output() {
 
 expect_json_expr() {
     local what="$1" expr="$2" payload="$3"
-    if python3 -c "import json, sys; d = json.loads(sys.argv[1]); assert ($expr), d" "$payload"; then
+    if python3 -B -c "import json, sys; d = json.loads(sys.argv[1]); assert ($expr), d" "$payload"; then
         echo "ok           $what"
     else
         echo "FAILED       $what (payload='$payload')"

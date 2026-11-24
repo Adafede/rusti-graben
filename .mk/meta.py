@@ -11,23 +11,11 @@ import subprocess
 import sys
 from typing import Any
 
-LIB_TARGET_KINDS = frozenset({
-    "lib",
-    "rlib",
-    "dylib",
-    "cdylib",
-    "staticlib",
-    "proc-macro",
-})
+LIB_TARGET_KINDS = frozenset({"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro"})
 
 ROOT_TRIGGER_FILES = frozenset({
-    "Cargo.toml",
-    "Cargo.lock",
-    "rust-toolchain.toml",
-    ".cargo/mutants.toml",
-    "mk",
-    "mk.versions",
-    "mk.local",
+    "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/mutants.toml",
+    "mk", "mk.versions", "mk.local",
 })
 
 PACKAGE_TRIGGER_DIRS = frozenset({"src", "tests", "benches", "examples"})
@@ -101,26 +89,17 @@ def _package_dirs(pkgs: list[dict[str, Any]]) -> list[tuple[int, str, str, str]]
     return entries
 
 
-def _match_package_dir(
-    abs_file: str,
-    dirs: list[tuple[int, str, str, str]],
-) -> tuple[str, str, str] | None:
+def _match_package_dir(abs_file: str, dirs: list[tuple[int, str, str, str]]) -> tuple[str, str, str] | None:
     """Find the deepest package directory containing abs_file."""
     for _, pdir, pid, name in dirs:
         if abs_file == pdir or abs_file.startswith(pdir + os.sep):
             return pdir, pid, name
     return None
 
-
 def _clean_files(files: Iterable[str]) -> list[str]:
     return sorted({line.strip() for line in files if line.strip()})
 
-
-def changed_rust_packages(
-    meta: dict[str, Any],
-    git_root: str,
-    files: Iterable[str],
-) -> list[str]:
+def changed_rust_packages(meta: dict[str, Any], git_root: str, files: Iterable[str]) -> list[str]:
     """Return sorted workspace package names owning any changed file."""
     cleaned = _clean_files(files)
     if not cleaned:
@@ -177,12 +156,7 @@ def _is_package_trigger(rel: str, inside: str) -> bool:
     )
 
 
-def affected_packages(
-    meta: dict[str, Any],
-    git_root: str,
-    root_dir: str,
-    files: Iterable[str],
-) -> list[str]:
+def affected_packages(meta: dict[str, Any], git_root: str, root_dir: str, files: Iterable[str]) -> list[str]:
     """Return sorted changed packages plus transitive workspace reverse-dependents."""
     cleaned = _clean_files(files)
     if not cleaned:

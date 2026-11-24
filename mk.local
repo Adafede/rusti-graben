@@ -38,6 +38,6 @@ task_docs_boundary() {
     fi
 }
 task_runner_tests() {
-    python3 -m unittest discover -s tests -p 'test_*.py'
+    PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -p 'test_*.py'
     bash tests/selftest/suite_unit.sh
 }
