@@ -83,13 +83,18 @@ set_deny_placeholder() {
     sed -i.bak "s|^  \"[^\"]*\", *# this project's own license (scripts/adopt.sh replaces it)|  \"$1\",  # this project's own license|" deny.toml
     rm -f deny.toml.bak
 }
+ensure_trailing_newline() {
+    if [ -s "$1" ] && [ -n "$(tail -c1 "$1")" ]; then
+        printf '\n' >>"$1"
+    fi
+}
 append_gitignore() {
-    [ -s .gitignore ] && [ -n "$(tail -c1 .gitignore)" ] && printf '\n' >>.gitignore
+    ensure_trailing_newline .gitignore
     printf '%s\n' "$1" >>.gitignore
 }
 strip_trailing_blanks() { awk 'NF{last=NR} {lines[NR]=$0} END{for(i=1;i<=last;i++) print lines[i]}'; }
 add_debug_profiles() {
-    [ -s Cargo.toml ] && [ -n "$(tail -c1 Cargo.toml)" ] && printf '\n' >>Cargo.toml
+    ensure_trailing_newline Cargo.toml
     printf '\n[profile.dev.package."*"]\ndebug = false\n\n[profile.test.package."*"]\ndebug = false\n' >>Cargo.toml
     if command -v tombi >/dev/null 2>&1; then tombi format Cargo.toml >/dev/null 2>&1 || true; fi
 }
@@ -121,7 +126,7 @@ sync_standard_runner() {
         act "add mk.local" write_mk_local
         if [ -f Makefile.toml ]; then
             act "pin cargo-make in mk.local" append_cargo_make_pin
-            echo "    TODO: list this repository's own cargo-make gates in mk.local (LOCAL_CI_GATES, LOCAL_OVERRIDES)"
+            echo "    ACTION: list this repository's own cargo-make gates in mk.local (LOCAL_CI_GATES, LOCAL_OVERRIDES)"
         fi
     fi
 }
@@ -216,7 +221,7 @@ print_next_steps() {
     [ "$DRY_RUN" = 0 ] || return 0
     if ! grep -q '^rust-version' Cargo.toml &&
         [ -z "$(python3 -B "$TEMPLATE_DIR/.mk/meta.py" msrv 2>/dev/null || true)" ]; then
-        echo "    TODO: set rust-version in Cargo.toml (the msrv gate requires it)"
+        echo "    ACTION: set rust-version in Cargo.toml (the msrv gate requires it)"
     fi
     cat <<'EOF'
 ==> Next, in the adopted repository:
