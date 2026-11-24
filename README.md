@@ -31,7 +31,7 @@ scripts/adopt.sh path/to/repo             # dry run
 DRY_RUN=0 scripts/adopt.sh path/to/repo   # apply
 ```
 
-Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.versions`, `.github/actions/setup/action.yml`). Repository-specific gates, tools, and overrides live in `mk.local`, which `adopt.sh` never overwrites.
+Re-run `scripts/adopt.sh` at any time to sync the standard runner (`mk`, `mk.versions`, `.mk/*`, `.github/actions/setup/action.yml`). Repository-specific gates, tools, and overrides live in `mk.local`, which `adopt.sh` never overwrites.
 
 ## Gate Table (Blocking vs. Nightly vs. Inner Loop)
 

@@ -18,7 +18,7 @@ metadata:
 ## Rules
 - **Single entrypoint**: Always run `./mk <task>`; never invoke `cargo`, `rustfmt`, `clippy`, `typos`, `cargo-deny`, `cargo-audit`, or `cargo-machete` directly.
 - **Hard failures & pinning**: All gates fail hard unless inapplicable (`rust-toolchain.toml` + `mk.versions`; `tools` refuses version drift).
-- **Standard vs local**: Never edit synced `mk`, `mk.versions`, or `.github/actions/setup/action.yml` in adopted repos; put repo tasks (`task_<name>()`, `Makefile.toml`), overrides, and ratchets in `mk.local`.
+- **Standard vs local**: Never edit synced `mk`, `mk.versions`, `.mk/*`, or `.github/actions/setup/action.yml` in adopted repos; put repo tasks (`task_<name>()`, `Makefile.toml`), overrides, and ratchets in `mk.local`.
 - **Strict lints & hooks**: Enforce workspace `unsafe_code = "forbid"`, `unwrap_used = "deny"`, `allow_attributes = "deny"` (`#[expect(..., reason = "...")]`), and `prek` hooks (`./mk check` on commit, `./mk ci-fast` on push).
 - **Doc boundary**: Never reference `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, or `.agents/` from human docs (`README.md`, `CONTRIBUTING.md`, `docs/`, `.github/`).
 - **Adopt**: `DRY_RUN=0 scripts/adopt.sh <repo>` (see `docs/ADOPTING.md` and `AGENTS.md`).

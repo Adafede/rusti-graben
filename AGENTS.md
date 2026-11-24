@@ -6,11 +6,12 @@
 
 | Path | Responsibility | Key Entry Points |
 |---|---|---|
-| `mk` | Standard task runner (synced across repos; never edit in adopted repos) | `./mk ci`, `./mk check`, `./mk fix`, `./mk test-fast` |
+| `mk` | Thin entrypoint (synced across repos; never edit in adopted repos) | `./mk ci`, `./mk check`, `./mk fix`, `./mk test-fast` |
+| `.mk/` | Layered runner modules (`meta.py`, `catalog`, `core`, `tools`, `mutants*`, `gates`, `nightly`, `tier`) | Sourced by `mk` |
 | `mk.versions` | Pinned tool and nightly toolchain versions | `CARGO_TOOLS_CI`, `CARGO_TOOLS_NIGHTLY`, `TOMBI_VERSION`, `SHELLCHECK_VERSION` |
 | `mk.local` | Repo-specific gates (`task_<name>()` / cargo-make), overrides, scopes, ratchets | `LOCAL_CI_GATES`, `LOCAL_OVERRIDES`, `COVERAGE_FAIL_UNDER_LINES`, `ECHOES_MAX_*` |
 | `scripts/adopt.sh` | Template-only idempotent adoption and sync runner (`DRY_RUN=0`) | `scripts/adopt.sh <repo>` |
-| `tests/gate_selftest.sh` | Template-only gate failure-injection and `adopt.sh` test suite | `./mk selftest` |
+| `tests/gate_selftest.sh` | Template-only modular selftest orchestrator (`tests/selftest/*.sh`, `tests/test_meta.py`) | `./mk selftest` |
 | `crates/sample-lib` | Sample library exercising workspace lints, doctests, README sync | `sample_lib::add` |
 | `crates/sample-bin` | Sample CLI binary exercising integration tests and `#[expect]` exceptions | `main` |
 
@@ -59,7 +60,7 @@ Set `NO_COLOR=1` or `CI=1` for plain, uncolored output.
 
 ## Conventions & Hard Prohibitions
 
-- **Single entrypoint**: Always invoke `./mk <task>`. Never edit `mk`, `mk.versions`, or `.github/actions/setup/action.yml` in an adopted repo; put repo-specific settings in `mk.local`.
+- **Single entrypoint**: Always invoke `./mk <task>`. Never edit `mk`, `mk.versions`, `.mk/*`, or `.github/actions/setup/action.yml` in an adopted repo; put repo-specific settings in `mk.local`.
 - **Never weaken a gate**:
   - No `unsafe` (`unsafe_code = "forbid"`).
   - No `unwrap()`, `expect()`, `panic!()`, `todo!()`, or `dbg!()` outside tests.

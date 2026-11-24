@@ -10,14 +10,14 @@ Run the cheapest check that proves your change before running full suites:
 2. **Mutant-killing loop**: `./mk mutants-diff -f <file>`, then iterate with `./mk mutants-diff --iterate` until every mutant is caught.
 3. **Pre-push**: `./mk ci-fast` — local pre-push gate (omits `mutants-diff` and network `audit`; change-aware).
 4. **Final sign-off (run once)**: `./mk ci` — full blocking PR gate suite including full non-iterated `mutants-diff` (`msrv` skips cleanly inside tiers when `lint` already passed on matching `rustc`).
-5. `./mk selftest` — mandatory whenever editing `mk`, `mk.versions`, `mk.local`, `scripts/adopt.sh`, or `tests/gate_selftest.sh`.
+5. `./mk selftest` — mandatory whenever editing `mk`, `.mk/*`, `mk.versions`, `mk.local`, `scripts/adopt.sh`, `tests/gate_selftest.sh`, or `tests/selftest/*`.
 
 Always set `NO_COLOR=1` (or `CI=1`) when reading output programmatically.
 
 ## Hard Invariants
 
 1. **Zero-drift single entrypoint**: CI workflows (`.github/workflows/*.yml`) and hooks (`prek.toml`) invoke `./mk <task>`. Never bypass `./mk` with raw tool invocations when verifying deliverables.
-2. **Standard vs. local split**: `mk`, `mk.versions`, and `.github/actions/setup/action.yml` stay byte-identical across adopted repos (`scripts/adopt.sh` syncs them). Put repo-specific settings and custom `LOCAL_*` gates below `mk.local`'s header. Wait before adding below `# Ratchet:` in template `mk.local`: `scripts/adopt.sh` runs `sed "/^# Ratchet:/,\$d"` when creating an adopted repo's `mk.local`, so anything below `# Ratchet:` stays template-only.
+2. **Standard vs. local split**: `mk`, `mk.versions`, `.mk/*`, and `.github/actions/setup/action.yml` stay byte-identical across adopted repos (`scripts/adopt.sh` syncs them). Put repo-specific settings and custom `LOCAL_*` gates below `mk.local`'s header. Wait before adding below `# Ratchet:` in template `mk.local`: `scripts/adopt.sh` runs `sed "/^# Ratchet:/,\$d"` when creating an adopted repo's `mk.local`, so anything below `# Ratchet:` stays template-only.
 3. **Change-aware docs/meta skip**: `docs_or_meta_only_diff` skips Rust compilation gates only when changed files cannot affect `rustc`/`rustdoc` compilation:
    - Single-crate root `README.md` or any Markdown referenced by `include_str!` / `include_bytes!` in `*.rs` triggers full Rust gates.
    - `LICENSE*`, `NOTICE*`, nested `crates/*/README.md`, and script/manifest edits trigger full Rust gates.

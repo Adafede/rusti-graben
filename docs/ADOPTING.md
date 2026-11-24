@@ -12,7 +12,7 @@ cd path/to/repo
 
 ## Standard files and `mk.local`
 
-`mk`, `mk.versions` and `.github/actions/setup/action.yml` are standard: identical
+`mk`, `mk.versions`, `.mk/*`, and `.github/actions/setup/action.yml` are standard: identical
 in every repository, and synced to the template each time `adopt.sh` runs (re-run
 it to update a repository). Everything specific to a repository lives in
 `mk.local`, which `adopt.sh` creates once and never overwrites:

@@ -89,3 +89,33 @@
 - **Files updated**: [.gitignore](file:///Users/adrutz/Git/rusti-graben/.gitignore), [mk](file:///Users/adrutz/Git/rusti-graben/mk), [mk.local](file:///Users/adrutz/Git/rusti-graben/mk.local), [.mk/core.sh](file:///Users/adrutz/Git/rusti-graben/.mk/core.sh), [.mk/meta.py](file:///Users/adrutz/Git/rusti-graben/.mk/meta.py), [.mk/mutants.sh](file:///Users/adrutz/Git/rusti-graben/.mk/mutants.sh), [.mk/gates.sh](file:///Users/adrutz/Git/rusti-graben/.mk/gates.sh), [scripts/adopt.sh](file:///Users/adrutz/Git/rusti-graben/scripts/adopt.sh), [tests/selftest/harness.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/harness.sh), [tests/selftest/suite_unit.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_unit.sh), [tests/selftest/suite_adopt.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_adopt.sh), [tests/selftest/suite_tools_ci.sh](file:///Users/adrutz/Git/rusti-graben/tests/selftest/suite_tools_ci.sh), [docs/ARCHITECTURE.md](file:///Users/adrutz/Git/rusti-graben/docs/ARCHITECTURE.md).
 - **Structural impact**: Enforced `python3 -B` across every runner/adoption/test invocation and ignored `__pycache__/`; split `.mk/mutants_plan.sh` and `.mk/nightly.sh` and decomposed selftest suite helpers so **zero** files exceed 300 LOC and **zero** functions exceed 40 LOC.
 - **Verification**: LOC audit (`0` violations), `NO_COLOR=1 ./mk shell`, `NO_COLOR=1 ./mk ci-fast`.
+
+## Step 10 — Documentation Alignment & Anti-Timidity Audit
+
+- **Files updated**: [README.md](file:///Users/adrutz/Git/rusti-graben/README.md), [docs/ADOPTING.md](file:///Users/adrutz/Git/rusti-graben/docs/ADOPTING.md), [docs/GATES.md](file:///Users/adrutz/Git/rusti-graben/docs/GATES.md), [CONTRIBUTING.md](file:///Users/adrutz/Git/rusti-graben/CONTRIBUTING.md), [AGENTS.md](file:///Users/adrutz/Git/rusti-graben/AGENTS.md), [.agents/PLAYBOOK.md](file:///Users/adrutz/Git/rusti-graben/.agents/PLAYBOOK.md), [skills/rusti-graben/SKILL.md](file:///Users/adrutz/Git/rusti-graben/skills/rusti-graben/SKILL.md), [docs/REFACTOR_PLAN.md](file:///Users/adrutz/Git/rusti-graben/docs/REFACTOR_PLAN.md).
+- **Files added**: [REVIEW_NOTES.md](file:///Users/adrutz/Git/rusti-graben/REVIEW_NOTES.md).
+
+### Anti-Timidity Check (Before vs. After)
+
+1. **Three largest structural changes**:
+   - Decomposed the 1,488-LOC monolithic `mk` runner into a thin 111-LOC entrypoint backed by 9 strictly layered modules under `.mk/` (`.mk/meta.py`, `.mk/catalog.sh`, `.mk/core.sh`, `.mk/tools.sh`, `.mk/mutants.sh`, `.mk/mutants_plan.sh`, `.mk/gates.sh`, `.mk/nightly.sh`, `.mk/tier.sh`), breaking the 168-LOC `run_mutants()`, 588-LOC dispatcher, and 101-LOC `mutants-plan` arm into `<= 40`-LOC single-purpose functions.
+   - Eliminated all 4 inline `python3 -c` heredocs and all 9 `grep -o`/`cut` JSON regex parsers on `cargo metadata` across `mk` and `scripts/adopt.sh`, replacing them with a pure-stdlib, unit- and property-tested `.mk/meta.py` domain module.
+   - Decomposed the 580-LOC sequential `tests/gate_selftest.sh` into a 42-LOC orchestrator plus 6 modular suites in `tests/selftest/` (`harness.sh`, `suite_unit.sh`, `suite_tools_ci.sh`, `suite_mutants.sh`, `suite_nightly.sh`, `suite_adopt.sh`) and added `tests/test_meta.py` (9 unit + seeded-DAG property tests) and `suite_unit.sh` (96 unit/characterization assertions) wired into `local:runner_tests`.
+2. **Modules created vs. deleted/shrunk**:
+   - **Created (16 modules/suites/docs)**: `.mk/{meta.py,catalog.sh,core.sh,tools.sh,mutants.sh,mutants_plan.sh,gates.sh,nightly.sh,tier.sh}`, `tests/test_meta.py`, `tests/selftest/{harness.sh,suite_unit.sh,suite_tools_ci.sh,suite_mutants.sh,suite_nightly.sh,suite_adopt.sh}`.
+   - **Deleted / shrunk**: Deleted temporary `tests/characterization.sh` (folded into `tests/selftest/suite_unit.sh`); shrunk `mk` `1,488 → 111` LOC (`-92.5%`); shrunk `tests/gate_selftest.sh` `580 → 42` LOC (`-92.8%`).
+3. **Quantitative Before vs. After Table**:
+
+| Metric | Before | After | Delta |
+|---|---|---|---|
+| Max runner/script file LOC | `1,488` (`mk`) | `297` (`.mk/gates.sh`) | `-80.0%` |
+| Max function LOC | `168` (`run_mutants`) | `<= 40` (0 functions > 40 LOC) | `-76.2%+` |
+| Main `case "$cmd"` LOC | `588` | `46` | `-92.2%` |
+| Inline `python3 -c` heredocs | `4` | `0` (in runner/adoption) | `-100%` |
+| Regex JSON parsers on `cargo metadata` | `9` | `0` | `-100%` |
+| Duplicated installers / `mk.local` upserts / cov / changed loops | `6` duplicated blocks | Unified helpers (`install_github_tarball`, `upsert_kv_line`, `run_llvm_cov`, `run_for_affected_packages`) | Eliminated |
+| Runner/adoption unit & property tests | `0` | `9` Python unit/DAG tests + `96` shell unit/characterization checks | `+105` checks |
+| `sample-bin` release size (`stat -f%z`) | `435,872` B | `339,824` B | `-22.0%` |
+| `sample-bin` `.text` (`cargo bloat`) | `213.5 KiB` (608 methods) | `207.0 KiB` (555 methods) | `-3.0%` / `-53` methods |
+| Release build time (cold clean) | `0.45s` | `52.84s` | LTO (`thin`) + `codegen-units = 1` trade-off |
+| `./mk ci-fast` wall time | `22.81s` | `~68s` (`shell` 51s + `runner_tests` 14s) | Trade-off: thorough standalone `shellcheck` across modular `.mk/` + `tests/selftest/` + `local:runner_tests` |

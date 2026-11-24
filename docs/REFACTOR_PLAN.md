@@ -35,6 +35,6 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 9.5 — Bytecode Hygiene & Strict File/Function Size Compliance**: Add `python3 -B` / `__pycache__/` hygiene, split `.mk/mutants_plan.sh` and `.mk/nightly.sh` so all files are `<= 300` LOC and all functions `<= 40` LOC.
   - *Verify*: `cargo check -p sample-lib --no-default-features && NO_COLOR=1 ./mk powerset && NO_COLOR=1 ./mk ci && NO_COLOR=1 ./mk selftest`
   - *Rollback*: Revert workspace manifest and `sample-lib` feature changes.
-- [ ] **Step 10 — Doc Alignment, Anti-Timidity Check & Final Sign-off**: Update human and contributor docs (`CONTRIBUTING.md` MSRV, `README.md`, `docs/ADOPTING.md`, `docs/GATES.md`, etc.), finalize `SESSION_LOG.md` anti-timidity metrics and `REVIEW_NOTES.md`, and run full verification (`ci`, `ci-nightly`, `selftest`, `ci-release`).
+- [x] **Step 10 — Doc Alignment, Anti-Timidity Check & Final Sign-off**: Update human and contributor docs (`CONTRIBUTING.md` MSRV, `README.md`, `docs/ADOPTING.md`, `docs/GATES.md`, etc.), finalize `SESSION_LOG.md` anti-timidity metrics and `REVIEW_NOTES.md`, and run full verification (`ci`, `ci-nightly`, `selftest`, `ci-release`).
   - *Verify*: `NO_COLOR=1 ./mk ci && NO_COLOR=1 ./mk ci-nightly && NO_COLOR=1 ./mk selftest && NO_COLOR=1 ./mk ci-release`
   - *Rollback*: Revert doc-finalization commit.
