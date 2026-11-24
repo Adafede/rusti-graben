@@ -20,3 +20,9 @@
 
 - **Deliverables**: Rewrote [docs/ARCHITECTURE.md](file:///Users/adrutz/Git/rusti-graben/docs/ARCHITECTURE.md) with 5-layer dependency model and one-line component contracts; created [docs/REFACTOR_PLAN.md](file:///Users/adrutz/Git/rusti-graben/docs/REFACTOR_PLAN.md) with Steps 1–10.
 - **Verification**: `NO_COLOR=1 ./mk ci-fast` (verified clean against `local:docs_boundary`, `typos`, `refquiem`).
+
+## Step 1 — Characterization Tests
+
+- **Files added**: [tests/characterization.sh](file:///Users/adrutz/Git/rusti-graben/tests/characterization.sh).
+- **Tests added**: CLI `help`, `--list`, unknown-task exit/usage, `toml` alias, `mutants-plan` JSON/sharding/validation, `ratchet` numeric bounds, `scripts/adopt.sh` dry-run & idempotency, and `sample-bin` stdout golden output (`10 + 20 = 30`).
+- **Verification**: `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk ci-fast && tests/characterization.sh`.

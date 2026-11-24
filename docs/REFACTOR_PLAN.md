@@ -7,7 +7,7 @@ Ordered, incremental migration plan executing against `docs/audit/AUDIT.md` and 
 - [x] **Step 0 — Environment Sync & Baseline Timings**: Sync pinned CI tools (`./mk setup ci`), verify `./mk tools` and `./mk ci-fast`, capture baseline release build/binary/timing metrics.
 - [x] **Phase 0 — Recon Audit (`docs/audit/AUDIT.md`)**: Map workspace, capture `tokei`/`cargo bloat`/hotspot baselines, rank findings `F-01`..`F-08` (`af2d61a`).
 - [x] **Phase 1 — Target Architecture & Plan (`docs/ARCHITECTURE.md`, `docs/REFACTOR_PLAN.md`)**: Define strict layered architecture, one-line component contracts, error/concurrency invariants, and step plan.
-- [ ] **Step 1 — Characterization Tests (`tests/characterization.sh`)**: Pin current behavior of `mk` (`help`, `--list`, unknown task, aliases, `mutants-plan`, `ratchet` validation), `scripts/adopt.sh` (dry-run & idempotency), and `sample-bin` stdout before modifying runner code.
+- [x] **Step 1 — Characterization Tests (`tests/characterization.sh`)**: Pin current behavior of `mk` (`help`, `--list`, unknown task, aliases, `mutants-plan`, `ratchet` validation), `scripts/adopt.sh` (dry-run & idempotency), and `sample-bin` stdout before modifying runner code.
   - *Verify*: `NO_COLOR=1 ./mk shell && NO_COLOR=1 ./mk ci-fast && tests/characterization.sh`
   - *Rollback*: Delete `tests/characterization.sh`.
 - [ ] **Step 2 — Pure Metadata, Graph & Shard Planner (`.mk/meta.py`, `tests/test_meta.py`)**: Extract all 4 inline Python heredocs and all `cargo metadata` JSON regexes into pure stdlib functions in `.mk/meta.py` with unit + seeded-DAG property tests in `tests/test_meta.py`; register template-only `local:runner_tests` in `mk.local`.
